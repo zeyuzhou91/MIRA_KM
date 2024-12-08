@@ -1,0 +1,132 @@
+\documentclass[11pt]{article}
+
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage{natbib}
+\usepackage{mathtools}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{algpseudocode}
+\usepackage{dsfont}  % for \mathds{}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{multirow}   % for drawing multirow tables
+\usepackage{enumerate}  % for \begin{enumerate}
+\usepackage{soul}       % for wrapping unline over multiple lines
+%\usepackage{float}      % enforcing a figure/table to be placed precisely at the location in code
+\usepackage{diagbox}    % for drawing header cell in tables in the form X\Y
+\usepackage{geometry}  % flexbily adjust the page dimensions
+\usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=cyan,
+}
+
+
+\usepackage{fancyhdr}
+\usepackage{subcaption}  % for \begin{subfigure}
+\usepackage{caption}  % for \caption*
+\usepackage{floatrow}
+\usepackage{url}
+\usepackage{csquotes}   % for \begin{displayquote}
+\usepackage{framed}  % for \begin{framed}
+
+
+
+
+
+\input{ZZcommands}
+
+\begin{document}
+	
+	
+
+	
+\title{Logan Reference Tissue Model}
+\author{Zeyu Zhou (zeyu.zhou@emory.edu)} 
+\date{\today}
+\maketitle
+
+%\tableofcontents
+
+
+\section{Summary}
+
+
+The Logan reference tissue model (LoganRTM) \cite{logan1996distribution} has the following features:
+\begin{itemize}
+	\item A reference model. That is, it does not require arterial input. 
+	\item A graphical model with linear fitting. That is, it works with transformed TACs, not the original TACs. 
+	\item For reversible receptor ligands. 
+	\item Does not assume a specific compartment model structure of the target tissue and reference tissue. This is because it is derived from the Logan plot, which assumes no specific compartment model. However, its operational usage often assumes a 1TCM for the reference tissue. 
+	\item It outputs the distribution volume ration (DVR) for the target tissue, which is the ratio between the DV of the target tissue and that of the reference tissue. With the assumption that $\frac{K_1}{k_2} = \frac{K'_1}{k'_2}$ (the level of nonspecific binding is the same in the target and reference tissues), $\text{DVR} = \text{BP}_{\text{ND}} + 1$.
+\end{itemize}
+
+Operational equation:
+
+\begin{equation}
+	\label{eq:operational_eq}
+	\underbrace{\frac{\int_0^T \! C_T(t) \, \dd  t}{C_T(T)}}_{y(T)} = \text{DVR} \underbrace{\left[\frac{\int_0^T \! C'(t) \, \dd t + \frac{C'(T)}{k'_2}}{C_T(T)}  \right]}_{x(T)} + b \, , 
+\end{equation}
+where 
+\begin{itemize}
+	\item $C_T(t)$ is the TAC of the target tissue
+	\item $C'(t)$ is the TAC of the reference tissue 
+	\item $k'_2$ is the tissue-to-plasma clearance rate of the reference tissue.
+\end{itemize}
+For $T$ sufficiently large, the curve $y(T)$ vs. $x(T)$ becomes linear, with $\text{DVR}$ as the slope and $b$ as the intercept. 
+
+About $k'_2$:
+\begin{itemize}
+	\item According to \cite{PMODLoganRTM}, $k'_2$ in the original publication \cite{logan1996distribution} was the population average for the reference tissue determined using blood sampling, but using the subject's own $k_2'$ may be preferable; the $k'_2$ resulting from SRTM or MRTM method might be a reasonable estimate to use in Eq. (\ref{eq:operational_eq}).
+	\item According to \cite{logan1996distribution}, reasonable variation in $k'_2$ does not cause big changes in the output value of $\text{DVR}$.
+\end{itemize}
+
+
+
+
+
+\section{Derivation}
+
+According to the Logan graphical analysis (Logan plot) of reversible receptor ligands, for the target tissue, we have 
+\begin{equation}
+	\label{eq:Logan_target}
+	\frac{\int_0^T \! C_T(t) \, \dd t }{C_T(T) } = V_T \frac{\int_0^T \! C_p(t) \, \dd t }{C_T(T)}  + b \, , 
+\end{equation}
+where $C_p(t)$ is the plasma TAC after metabolite correction, $V_T$ is the distribution volume of the target tissue. Assuming 2TCM for the target tissue, $V_T = \frac{K_1}{k_2} \left(1 + \frac{k_3}{k_4}\right)$. (Note that there are three usages of letter $T$ in the above equation, with different meanings.)
+
+For the reference tissue, we have 
+\begin{equation}
+	\label{eq:Logan_ref}
+	\frac{\int_0^T \! C'(t) \, \dd t }{C'(T) } = V'_T \frac{\int_0^T \! C_p(t) \, \dd t }{C'(T)}  + b' \, .
+\end{equation}
+Assuming 1TCM for the reference tissue (due to absence of target receptors), $V'_T = \frac{K'_1}{k'_2}$, $b' = -\frac{1}{k'_2}$.
+
+Combining Eq. (\ref{eq:Logan_target}) and Eq. (\ref{eq:Logan_ref}) by canceling the $\int_0^T \! C_p(t) \, \dd t$ term and re-arranging, we obtain the operational equation
+
+\begin{equation}
+	\frac{\int_0^T \! C_T(t) \, \dd  t}{C_T(T)} = \frac{V_T}{V'_T} \left[\frac{\int_0^T \! C'(t) \, \dd t + \frac{C'(T)}{k'_2}}{C_T(T)}  \right] + b \, .
+\end{equation}
+
+Here $\text{DVR} = \frac{V_T}{V'_T}$. With the above assumptions, $\text{DVR} = 1  + \frac{k_3}{k_4} =  1 + \text{BP}_{\text{ND}}$.
+
+
+
+
+
+
+
+
+
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document} 
+
+
+
+
+
