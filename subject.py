@@ -2,6 +2,7 @@
 Subject
 """
 
+from typing import Dict, List, Any
 import pandas as pd
     
     
@@ -68,8 +69,17 @@ class Cohort:
                     subj_info[header] = None
         
         return None
+ 
     
-
+    def add_subj_header_value(self, 
+                              subj: str,
+                              header: str,
+                              value: float):
+        
+        self.info[subj][header] = value
+            
+        return None
+    
 
 
     def assign_value(self, 
@@ -92,6 +102,24 @@ class Cohort:
         return v
 
 
+    def all_values_of_header(self, header: str):
+        
+        all_values = []
+        
+        for (subj, subj_info) in self.info.items():
+            v = self.info[subj][header]
+            all_values.append(v)
+            
+        return all_values
+    
+    
+    def all_subj_names(self):
+        """
+        ZEYU: maybe a better name?
+        """
+        
+        return list(self.info.keys())
+        
     
     def write_to_excel(self, filepath: str):
         """
@@ -100,7 +128,37 @@ class Cohort:
                 
         df = pd.DataFrame(self.info).T  # Transpose to get subjects as rows
         
+        df.index.name = "directory"  # Set the name of the index
+        
         df.to_excel(filepath, engine='openpyxl')
         
         return None
+
+
+    def filter_subjects(self, criteria: Dict[str, Any]) -> List[str]:
+        """
+        Filters subjects based on specified criteria.
+    
+        Parameters:
+        - criteria (dict): A dictionary where keys are headers (column names) and 
+          values are the values to filter by. Supports exact matches.
+    
+        Returns:
+        - List of subject names that match all the given criteria.
+        
+        Example Usage:
+            
+            criteria = {"Age": 30, "Gender": "Male"}
+            filtered = cohort.filter_subjects(criteria)
+            print(filtered)  # Outputs subjects that are 30 years old and male
+        """
+        
+        filtered_subjects = []
+    
+        for subj, subj_info in self.info.items():
+            match = all(subj_info.get(header) == value for header, value in criteria.items())
+            if match:
+                filtered_subjects.append(subj)
+    
+        return filtered_subjects
     

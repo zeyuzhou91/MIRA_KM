@@ -202,12 +202,36 @@ class BloodInput:
             blood_tac = TAC.from_file(fs = fs, 
                                       tacfile_path = tac)
         
-        bounds = ((0, 0, 0, 0, 0, 0, 0),
-                  (np.inf, 2, np.inf, np.inf, np.inf, np.inf, np.inf))
+        # bounds = ((0, 0, 0, 0, 0, 0, 0),
+        #           (np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf))
         
-        blood_tac.fit(model = linear_3exp,
-                      p0 = p0,
-                      bounds = bounds)
+        # bounds = ((0, 0, 0, 0, 0),
+        #           (np.inf, np.inf, np.inf, np.inf, np.inf))
+        
+        bounds = None
+        
+        fitted_params = blood_tac.fit(model = linear_3exp,
+                                      p0 = p0,
+                                      bounds = bounds)
+        
+        # print("ICA fitting:")
+        
+        # a, Tpk, A1, lamb1, A2, lamb2, lamb3 = fitted_params
+        # print(f"a = {a}")
+        # print(f"Tpk = {Tpk}")
+        # print(f"A1 = {A1}")
+        # print(f"lamb1 = {lamb1}")
+        # print(f"A2 = {A2}")
+        # print(f"lamb2 = {lamb2}")
+        # print(f"lamb3 = {lamb3}")
+        
+        
+        # a, Tpk, A1, lamb1, lamb2 = fitted_params
+        # print(f"a = {a}")
+        # print(f"Tpk = {Tpk}")
+        # print(f"A1 = {A1}")
+        # print(f"lamb1 = {lamb1}")
+        # print(f"lamb2 = {lamb2}")
         
         #blood_tac.plot_with_fitting()
         
@@ -251,6 +275,25 @@ class BloodInput:
         return None
 
 
+def linear_2exp(t: float | np.ndarray, 
+                a, Tpk, A1, lamb1, lamb2
+                ) -> float | np.ndarray:
+    """
+    Implements the following piecewise function f(t):
+        
+    f(t) = a*t  if 0 <= t < Tpk
+         = A1*exp{-lamb1*(t-Tpk)} + A2*exp{-lamb2*(t-Tpk)}  if t >= Tpk
+    
+    The parameters should satisfy:
+        a * Tpk = A1 + A2
+    """
+    
+    A2 = a * Tpk - A1
+    
+    return ( 
+        ((t>=0)&(t<Tpk)) * (a * t) + 
+        (t>=Tpk) * (A1*np.exp(-lamb1*(t-Tpk)) + A2*np.exp(-lamb2*(t-Tpk))))
+
 
 
 def linear_3exp(t: float | np.ndarray, 
@@ -269,7 +312,7 @@ def linear_3exp(t: float | np.ndarray,
     A3 = a * Tpk - (A1 + A2)
     return ( 
         ((t>=0)&(t<Tpk)) * (a * t) + 
-        (t>=Tpk) * (A1*np.exp(-lamb1*(t-Tpk)) + A2*np.exp(-lamb2*(t-Tpk)) + A3*np.exp(-lamb3*(t-Tpk))) )
+        (t>=Tpk) * (A1*np.exp(-lamb1*(t-Tpk)) + A2*np.exp(-lamb2*(t-Tpk)) + A3*np.exp(-lamb3*(t-Tpk))))
 
 
 

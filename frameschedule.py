@@ -97,6 +97,3 @@ class FrameSchedule:
         return cls(mid_points, durations, start_points, unit)
 
     
-    
-    
-    

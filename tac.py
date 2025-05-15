@@ -34,6 +34,7 @@ class TAC:
                  t: NumpyRealNumberArray | None = None,
                  y: NumpyRealNumberArray | None = None,
                  std: NumpyRealNumberArray | None = None,
+                 num_voxels: int | None = None, 
                  unit: str | None = None,
                  t_unit: str | None = None,
                  full_info: TAC_FULL | None = None):
@@ -43,6 +44,8 @@ class TAC:
         self.std = std
         self.unit = unit
         self.t_unit = t_unit
+        
+        self.num_voxels = num_voxels
         
         self.num_frames = None
         
@@ -68,6 +71,7 @@ class TAC:
         return cls(t = fs.mid_points,
                    y = y,
                    std = std,
+                   num_voxels = num_voxels, 
                    unit = unit,
                    t_unit = fs.unit,
                    full_info = None)
@@ -86,6 +90,7 @@ class TAC:
         return cls(t = fs.mid_points,
                    y = tac_full.avg,
                    std = tac_full.std,
+                   num_voxels = tac_full.num_voxels,
                    unit = tac_full.unit,
                    t_unit = fs.unit,
                    full_info = tac_full)
@@ -103,6 +108,18 @@ class TAC:
         self.num_frames = len(self.t)
         
         return None
+
+
+    def scale_y(self, 
+                multiply_factor: float,
+                new_y_unit: str):
+    
+        self.y *= multiply_factor
+        self.unit = new_y_unit
+        if self.std is not None:
+            self.std *= multiply_factor
+            
+        return None
     
     
     def fit(self,
@@ -118,19 +135,24 @@ class TAC:
         model: function to be fitted, first argument must be time, the remaining arguments are parameters 
         """
         
-        
-        popt, _ = curve_fit(f = model, 
-                            xdata = self.t,
-                            ydata = self.y,
-                            p0 = p0,
-                            bounds = bounds)
+        if bounds is None:
+            popt, _ = curve_fit(f = model, 
+                                xdata = self.t,
+                                ydata = self.y,
+                                p0 = p0)
+        else:
+            popt, _ = curve_fit(f = model, 
+                                xdata = self.t,
+                                ydata = self.y,
+                                p0 = p0,
+                                bounds = bounds)
         
         def f(t):
             return model(t, *popt)
         
         self.fitted_func = f
         
-        return None
+        return popt
     
     
     def plot_with_fitting(self,
@@ -175,7 +197,7 @@ class TAC:
                 opfile_path = os.path.join(op_dir, op_filename)
             plt.savefig(opfile_path, bbox_inches="tight", dpi=300)
         
-        #plt.show()
+        plt.show()
         plt.close()
         
         return None        
@@ -195,6 +217,7 @@ def extract_tac_from_PETimg(
     # For a given PET image, apply a binary mask and generate the ROI information. 
     
     # Load the input PET image
+    
     PETimg = nib.load(PETimg_path)
     PETimg_data = PETimg.get_fdata()
     
@@ -279,6 +302,14 @@ def extract_tac_from_PETimg(
                                      opfile_path)
         result.unit = 'unitless'
 
+    elif PETimg_unit == 'uncertain':
+        if opfile_path is not None:
+            aux.write_to_csv_threecols(result.avg, 'average', 'uncertain', 
+                                     result.std, 'std', 'uncertain', 
+                                     result.num_voxels * np.ones(num_frames, dtype=int), 'num_voxels', '#',
+                                     opfile_path)
+        result.unit = 'uncertain'
+
     return result
 
 
@@ -303,6 +334,9 @@ def extract_tac_from_csv(filepath: str):
         unit1 = 'kBq/mL'
     
     elif unit1 == 'unitless':
+        pass
+    
+    elif unit1 == 'uncertain':
         pass
         
     num_voxels = int(num_voxels_list[0])

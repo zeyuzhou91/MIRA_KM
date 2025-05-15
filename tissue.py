@@ -516,6 +516,20 @@ class Tissue_Collections:
         return y_unit, t_unit
 
 
+    def scale_tacs(self, 
+                   multiply_factor: float,
+                   new_tac_unit: str):
+        
+        for tissue in self.tissues:
+            tissue.tac.scale_y(multiply_factor = multiply_factor,
+                               new_y_unit = new_tac_unit)
+        
+        self.tac_y_unit, self.tac_t_unit = self.read_tac_units()
+            
+        return None
+
+
+
     def plot_tacs(self, 
                   tissue_names: list[str] | None = None,
                   op_dir: str | None = None,

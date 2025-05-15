@@ -31,12 +31,23 @@ def empty_dir(dir_path):
             delete_dir(f)
     return None    
     
-
     
 def create_dir(dir_path):
     os.makedirs(dir_path, exist_ok=True)
     return None
+
+
+def rename_dir(old_dir, new_dir):
+    if os.path.exists(old_dir):
+        os.rename(old_dir, new_dir)
+    return None
     
+
+def copy_dir(src_dir, dst_dir):
+    if os.path.exists(src_dir):
+        shutil.copytree(src_dir, dst_dir)
+    return None
+
 
 def delete_file(file_path):
     if os.path.exists(file_path):
@@ -62,9 +73,9 @@ def move_file(src_path, dst_path):
     return None
 
 
-def rename_file(src_path, dst_path):
-    if os.path.exists(src_path):
-        os.rename(src_path, dst_path)
+def rename_file(old_path, new_path):
+    if os.path.exists(old_path):
+        os.rename(old_path, new_path)
     return None
 
 
