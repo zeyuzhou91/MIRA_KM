@@ -1,5 +1,12 @@
 """
-Auxiliary classes and functions.
+aux.py
+
+Auxiliary utility functions and legacy class stubs for data I/O, 
+especially for reading and writing CSV files with headers and units, 
+and for kinetic model unit mappings.
+
+Author: Zeyu Zhou
+Date: 2025-05-15
 """
 
 import os
@@ -218,330 +225,238 @@ from numpy.typing import NDArray
     
 
 
+# ==========================
+# CSV WRITE FUNCTIONS
+# ==========================
+
 def write_to_csv_onecol(arr: NDArray, header: str, unit: str, csvfile_path: str) -> None:
     """
-    Write a 1D array to a CSV file as a column. 
+    Write a 1D array to a CSV file with a single column, including a header and unit row.
 
     Parameters
     ----------
-    csvfile_path : file path, ending in .csv
+    arr : NDArray
+        The 1D array to write.
+    header : str
+        Column name.
+    unit : str
+        Unit of the column data.
+    csvfile_path : str
+        File path to save the CSV.
     """
-    
     with open(csvfile_path, 'w', newline='') as csvfile:
-        # Create a CSV writer object
         csv_writer = csv.writer(csvfile)
-
-        # Write the header
         csv_writer.writerow([header])
-        
-        # Write the unit
         csv_writer.writerow([unit])
-
-        # Write the data
         for x in arr:
             csv_writer.writerow([x])
-    
+            
     return None
 
-    
 
 def write_to_csv_twocols(arr1, header1, unit1, arr2, header2, unit2, csvfile_path):
     """
-    Write two 1D arrays to a CSV file as two columns.  
-
-    Parameters
-    ----------
-    header1 : string
-    arr1 : list of numbers
-    header2 : string
-    arr2 : list of numbers
-    csvfile_path : string, file path, ending in .csv
-
-    Returns
-    -------
-    None.
-
+    Write two 1D arrays to a CSV file as two columns, including headers and units.
     """
-    
-    # Writing to CSV file
     with open(csvfile_path, 'w', newline='') as csvfile:
-        # Create a CSV writer object
         csv_writer = csv.writer(csvfile)
-    
-        # Write the header
         csv_writer.writerow([header1, header2])
-        
-        # Write the unit
         csv_writer.writerow([unit1, unit2])
-    
-        # Write the data
         for x, y in zip(arr1, arr2):
             csv_writer.writerow([x, y])
-    
+            
     return None
-
+    
 
 def write_to_csv_threecols(arr1, header1, unit1, 
                            arr2, header2, unit2, 
                            arr3, header3, unit3,
                            csvfile_path):
     """
-    Write two 1D arrays to a CSV file as three columns.  
+    Write three 1D arrays to a CSV file as three columns, including headers and units.
     """
-    
-    # Writing to CSV file
     with open(csvfile_path, 'w', newline='') as csvfile:
-        # Create a CSV writer object
         csv_writer = csv.writer(csvfile)
-    
-        # Write the header
         csv_writer.writerow([header1, header2, header3])
-        
-        # Write the unit
         csv_writer.writerow([unit1, unit2, unit3])
-    
-        # Write the data
         for x, y, z in zip(arr1, arr2, arr3):
             csv_writer.writerow([x, y, z])
-    
+            
     return None
 
 
 def write_to_csv_multicols(arr: NDArray, headers: list[str], units: list[str], csvfile_path: str):
     """
-    Write the arrays to a CSV file.  
+    Write an N x M array to a CSV file with multiple columns, including headers and units.
 
     Parameters
     ----------
-    arr: dimension N x m
-    headers: length N
-    units: length N
-    csvfile_path : string, file path, ending in .csv
-
-    Returns
-    -------
-    None.
-
+    arr : NDArray
+        Array with shape (N, M).
+    headers : list of str
+        Column names (length N).
+    units : list of str
+        Units of each column (length N).
+    csvfile_path : str
+        File path to save the CSV.
     """
-        
     with open(csvfile_path, 'w', newline='') as csvfile:
-        # Create a CSV writer object
         csv_writer = csv.writer(csvfile)
-
-        # Write the header
         csv_writer.writerow(headers)
-        
-        # Write the unit
         csv_writer.writerow(units)
-
-        # Write the data
-        # Basically, we need to write in the transpose of arr
-        N, m = arr.shape
-        for i in range(m):
+        N, M = arr.shape
+        for i in range(M):
             csv_writer.writerow(arr[:, i])
     
     return None
 
 
 
+# ==========================
+# CSV READ FUNCTIONS
+# ==========================
+
 def read_from_csv_onecol(filepath: str) -> (list[float], str, str):
     """
-    Read a CSV file with one column, output the header, unit, and the data.
+    Read a single-column CSV file with header and unit rows.
 
-    Parameters
-    ----------
-    filepath : file path ending in .csv. Only has one column, 1st row is header,
-                    2nd row is unit. 
+    Returns
+    -------
+    data : list of float
+    header : str
+    unit : str
     """
-    
     with open(filepath, 'r') as csvfile:
-        # Create a CSV reader object
         csv_reader = csv.reader(csvfile)
-
-        # Read the header
         header = next(csv_reader)[0]
-        
-        # Read the unit
         unit = next(csv_reader)[0]
-
-        # Read the data into a list
         data = [float(row[0]) for row in csv_reader]
-
     return data, header, unit
-    
+
 
 
 def read_from_csv_twocols(filepath: str) -> (list[float], str, str, list[float], str, str):
     """
-    Read a CSV file with two columns, output the data. 
+    Read a two-column CSV file with header and unit rows.
 
-    Parameters
-    ----------
-    filepath : file path, ending in .csv. Has two columns, 1st row is headers,
-        2nd row is units. 
+    Returns
+    -------
+    data1, header1, unit1, data2, header2, unit2
     """
-    
-    data1 = []
-    data2 = []
-
-    # Read from CSV file
+    data1, data2 = [], []
     with open(filepath, 'r') as csvfile:
-        # Create a CSV reader object
         csv_reader = csv.reader(csvfile)
-
-        # Read the header row
-        headers = next(csv_reader)
-
-        # Extract header names
-        header1, header2 = headers[0], headers[1]
-        
-        # Read the unit row
-        units = next(csv_reader)
-        
-        # Extract the units
-        unit1, unit2 = units[0], units[1]
-        
-
-        # Read the data into arrays
+        header1, header2 = next(csv_reader)
+        unit1, unit2 = next(csv_reader)
         for row in csv_reader:
             data1.append(float(row[0]))
             data2.append(float(row[1]))
+    return data1, header1, unit1, data2, header2, unit2    
 
-    return data1, header1, unit1, data2, header2, unit2     
-
+     
 
 def read_from_csv_threecols(filepath: str) -> (list[float], str, str, 
                                                list[float], str, str,
                                                list[float], str, str):
     """
-    Read a CSV file with three columns, output the data. 
+    Read a three-column CSV file with header and unit rows.
 
-    Parameters
-    ----------
-    filepath : file path, ending in .csv. Has three columns, 1st row is headers,
-        2nd row is units. 
+    Returns
+    -------
+    data1, header1, unit1, data2, header2, unit2, data3, header3, unit3
     """
-    
-    data1 = []
-    data2 = []
-    data3 = []
-
-    # Read from CSV file
+    data1, data2, data3 = [], [], []
     with open(filepath, 'r') as csvfile:
-        # Create a CSV reader object
         csv_reader = csv.reader(csvfile)
-
-        # Read the header row
-        headers = next(csv_reader)
-
-        # Extract header names
-        header1, header2, header3 = headers[0], headers[1], headers[2]
-        
-        # Read the unit row
-        units = next(csv_reader)
-        
-        # Extract the units
-        unit1, unit2, unit3 = units[0], units[1], units[2]
-        
-
-        # Read the data into arrays
+        header1, header2, header3 = next(csv_reader)
+        unit1, unit2, unit3 = next(csv_reader)
         for row in csv_reader:
             data1.append(float(row[0]))
             data2.append(float(row[1]))
             data3.append(float(row[2]))
-
     return data1, header1, unit1, data2, header2, unit2, data3, header3, unit3
+
 
 
 def read_from_csv_fourcols(filepath: str) -> (list[float], list[float], list[float], list[float]):
     """
-    Read a CSV file with  four columns, output the data. 
+    Read a four-column CSV file. Header and unit rows are ignored in the return.
 
-    Parameters
-    ----------
-    filepath : file path, ending in .csv. Has four columns, 1st row is headers,
-        2nd row is units. 
+    Returns
+    -------
+    data1, data2, data3, data4 : list of float
     """
-    
-    data1 = []
-    data2 = []
-    data3 = []
-    data4 = []
-
-    # Read from CSV file
+    data1, data2, data3, data4 = [], [], [], []
     with open(filepath, 'r') as csvfile:
-        # Create a CSV reader object
         csv_reader = csv.reader(csvfile)
-
-        # Read the header row
-        headers = next(csv_reader)
-
-        # # Extract header names
-        # header1, header2, header3, header4 = headers[0], headers[1]
-        
-        # Read the unit row
-        units = next(csv_reader)
-        
-        # # Extract the units
-        # unit1, unit2, unit3, unit4 = units[0], units[1]
-        
-
-        # Read the data into arrays
+        _ = next(csv_reader)  # skip headers
+        _ = next(csv_reader)  # skip units
         for row in csv_reader:
             data1.append(float(row[0]))
             data2.append(float(row[1]))
             data3.append(float(row[2]))
             data4.append(float(row[3]))
-
     return data1, data2, data3, data4
 
 
 
 
+# ==========================
+# MODEL UNIT DICTIONARY
+# ==========================
+
 def model_unit_table(model_name: str) -> dict[str, str]:
     """
-    Given the model name, return the unit table of the model. 
+    Return a dictionary of parameter units for a given kinetic model.
+
+    Parameters
+    ----------
+    model_name : str
+        Name of the model, e.g., '1TCM', '2TCM', 'Logan', 'RTM', 'SRTM'.
+
+    Returns
+    -------
+    unit_table : dict
+        Mapping from parameter names to their units.
+        
     """
     
-    unit_table = {}
-    
     if model_name == '1TCM':
-        unit_table = {'K1': 'mL/min/mL',
-                      'k2': '/min',
-                      'VB': 'unitless',
-                      'VD': 'unitless'}
+        return {'K1': 'mL/min/mL', 
+                'k2': '/min', 
+                'VB': 'unitless', 
+                'VD': 'unitless'}
     
     elif model_name == '2TCM':
-        unit_table = {'K1': 'mL/min/mL',
-                      'k2': '/min',
-                      'k3': '/min',
-                      'k4': '/min',
-                      'VB': 'unitless',
-                      'VND': 'unitless',
-                      'VS': 'unitless',
-                      'VT': 'unitless',
-                      'BPND': 'unitless'}
-        
+        return {'K1': 'mL/min/mL', 
+                'k2': '/min', 
+                'k3': '/min', 
+                'k4': '/min',
+                'VB': 'unitless', 
+                'VND': 'unitless', 
+                'VS': 'unitless',
+                'VT': 'unitless', 
+                'BPND': 'unitless'}
+    
     elif model_name == 'Logan':
-        unit_table = {'slope': 'unitless',
-                      'intercept': 'min',
-                      'tstart': 'min'}
+        return {'slope': 'unitless', 
+                'intercept': 'min', 
+                'tstart': 'min'}
     
     elif model_name == 'RTM':
-        unit_table = {'R1': 'unitless',
-                      'k2': '/min',
-                      'k3': '/min',
-                      'BPND': 'unitless',
-                      'k4': '/min'}    
-
-    elif model_name == 'SRTM':
-        unit_table = {'R1': 'unitless',
-                      'k2': '/min',
-                      'BPND': 'unitless'}
+        return {'R1': 'unitless', 
+                'k2': '/min', 
+                'k3': '/min',
+                'k4': '/min', 
+                'BPND': 'unitless'}
     
-    return unit_table
-
-
+    elif model_name == 'SRTM':
+        return {'R1': 'unitless', 
+                'k2': '/min', 
+                'BPND': 'unitless'}
+    
+    else:
+        return {}
 
 
 
