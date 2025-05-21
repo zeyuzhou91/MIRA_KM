@@ -1,5 +1,15 @@
 """
-Partial volume correction
+partial_volume_correction.py
+
+Functions related to Partial Volume Correction (PVC) for PET imaging.
+Supports both 3D and 4D data, using the PETPVC tool via Nipype.
+
+Includes:
+- seg_3Dto4D(): Converts 3D segmentation to 4D for PVC use.
+- pvc(): Applies PVC to single or multi-frame PET images.
+
+Author: Zeyu Zhou
+Date: 2025-05-21
 """
 
 import os
@@ -8,101 +18,26 @@ from pathlib import Path
 import glob
 import shutil
 from nipype.interfaces.petpvc import PETPVC
-from .file import split_4D_into_frames, concatenate_frames
+from .pet_image_processing import split_4D_into_frames, concatenate_frames
 
 
 def seg_3Dto4D(
         ippath: str,
         oppath: str) -> None:
+    """
+    Convert a 3D segmentation file to a 4D format using pvc_make4d.
+    This is required for frame-wise partial volume correction (PVC).
+    
+    Parameters:
+    - ippath: Input 3D segmentation file path.
+    - oppath: Output 4D segmentation file path.
+    
+    Returns:
+    - None. Saves the output directly.
+    """    
     
     os.system(f'pvc_make4d -i {ippath} -o {oppath}')
-    
-    # # load input image
-    # ip = nib.load(ippath)
-    
-    # ip_data = ip.get_fdata().astype(int)
-    
-    # all_IDs = list(set(ip_data.flatten()))
-    # all_IDs.sort()
-    # print(all_IDs)
-
-    
-    # if len(all_IDs) < 4:
         
-    #     op_data = None
-    
-    #     for ID in all_IDs:
-            
-    #         print(ID)
-            
-    #         mask = np.isin(ip_data, [ID]).astype(int)
-                        
-    #         if op_data is None:
-    #             # 3D to 4D
-    #             op_data = mask[..., np.newaxis]
-    #         else:
-    #             op_data = np.concatenate((op_data, mask[..., np.newaxis]), axis=-1)
-    
-    # else:
-        
-    #     # divide into 4 chunks for quicker processing
-        
-    #     op_data1 = None
-    #     op_data2 = None
-    #     op_data3 = None
-    #     op_data4 = None
-        
-    #     N = len(all_IDs) // 4
-        
-    #     for ID in all_IDs:
-            
-    #         print(ID)
-    #         mask = np.isin(ip_data, [ID]).astype(int)
-            
-            
-    #         if 0 <= ID <= N-1:
-                
-    #             if op_data1 is None:
-    #                 op_data1 = mask[..., np.newaxis]
-    #             else:
-    #                 op_data1 = np.concatenate((op_data1, mask[..., np.newaxis]), axis=-1)
-        
-    #         elif N <= ID <= 2*N-1:
-                
-    #             if op_data2 is None:
-    #                 op_data2 = mask[..., np.newaxis]
-    #             else:
-    #                 op_data2 = np.concatenate((op_data2, mask[..., np.newaxis]), axis=-1)
-        
-    #         elif 2*N <= ID <= 3*N-1:
-                
-    #             if op_data3 is None:
-    #                 op_data3 = mask[..., np.newaxis]
-    #             else:
-    #                 op_data3 = np.concatenate((op_data3, mask[..., np.newaxis]), axis=-1)
-            
-    #         else:
-               
-    #             if op_data4 is None:
-    #                 op_data4 = mask[..., np.newaxis]
-    #             else:
-    #                 op_data4 = np.concatenate((op_data4, mask[..., np.newaxis]), axis=-1)
-               
-    #     op_data = np.concatenate((op_data1, op_data2, op_data3, op_data4), axis=-1)       
-    
-    # # print(type(op_data))
-    # print(op_data.shape)
-    
-    # # Make the output image
-    # op = nib.Nifti1Image(op_data, ip.affine, ip.header)
-    
-    # print('finished making')
-            
-    # # Save the output image
-    # nib.save(op, oppath)
-    
-    # print('finished saving')
-    
     return None
 
 
@@ -112,6 +47,20 @@ def pvc(in_file: str,
         out_file: str,
         algo: str,
         fwhm: float) -> None:
+    """
+    Apply Partial Volume Correction (PVC) using the PETPVC interface from Nipype.
+    Supports both 3D and 4D PET images. Uses the specified segmentation mask.
+    
+    Parameters:
+    - in_file: Input PET image (.nii or .nii.gz), either 3D or 4D.
+    - mask_file: Segmentation or anatomical mask to guide PVC.
+    - out_file: Output file path for PVC-corrected image.
+    - algo: PVC algorithm identifier (e.g., 'gtm', 'labbe').
+    - fwhm: Full-width-half-maximum (FWHM) value for Gaussian kernel in mm.
+    
+    Returns:
+    - None. Writes output image(s) directly to disk.
+    """
     
     print('###################### PVCing ##########################')
     
