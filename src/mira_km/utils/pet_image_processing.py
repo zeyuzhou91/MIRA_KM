@@ -1,6 +1,14 @@
 """
-File processing
+pet_image_processing.py
 
+This module provides utilities for processing PET imaging data, particularly
+related to image/frame conversion, concatenation, averaging, and reorganization.
+
+Dependencies:
+- FSL and FreeSurfer command-line tools (e.g., `mri_convert`, `mri_concat`, `fslmaths`, `fslsplit`)
+
+Author: Zeyu Zhou
+Date: 2025-05-20
 """
 
 import os
@@ -8,15 +16,24 @@ import shutil
 from pathlib import Path
 import subprocess
 import glob
-from . import file_handling as fh
-
 from typing import Callable, Any
+from . import filesystem_utils as fu
+
 
 
 
 def freesurfer_convert(ippath: str,
                        oppath: str) -> None:
-    
+    """
+    Convert an image using FreeSurfer's mri_convert.
+
+    Parameters:
+    -----------
+    ippath : str
+        Input file path.
+    oppath : str
+        Output file path.
+    """
     
     command = ['mri_convert',
                '-i', ippath,
@@ -34,8 +51,14 @@ def concatenate_frames(frame_list: list[str],
                        outfile: str) -> None:
     
     """
-    Frames must be concatenated in order from frame_list.
+    Concatenate multiple frames into a 4D volume using FreeSurfer's mri_concat.
     
+    Parameters:
+    -----------
+    frame_list : list of str
+        Ordered list of frame file paths to concatenate.
+    outfile : str
+        Path to the output 4D file.
     """
     
     command = ['mri_concat']
@@ -53,10 +76,15 @@ def concatenate_frames(frame_list: list[str],
 
 def generate_mean_frame(infile: str,
                         outfile: str) -> None:
-
     """
-    infile: must be a dynamic (4D) image.
+    Generate mean frame from a 4D dynamic image using FreeSurfer's mri_concat.
     
+    Parameters:
+    -----------
+    infile : str
+        Input 4D image path.
+    outfile : str
+        Output mean frame file path.
     """
         
     command = ['mri_concat', infile, '--mean',
@@ -72,10 +100,17 @@ def generate_mean_frame(infile: str,
 def weighted_mean_frame_fsl(infile_list: list[str],
                             infile_weights: list[float],
                             outfile: str) -> None:
-
     """
-    Calculate weighted mean of frames. 
+    Compute the weighted mean of multiple PET frames using FSL's fslmaths.
     
+    Parameters:
+    -----------
+    infile_list : list of str
+        List of input frame files.
+    infile_weights : list of float
+        List of weights for each input file.
+    outfile : str
+        Output file path for the weighted mean.
     """
     
     
@@ -113,44 +148,10 @@ def weighted_mean_frame_fsl(infile_list: list[str],
     command += ['-div', str(tot_weight), outfile]    
     subprocess.run(command)
     
-    fh.delete_file_list(infile_weighted_list)
+    fu.delete_file_list(infile_weighted_list)
     
     return None
 
-
-
-
-def group_images_by_frames_old_todel(img_dir, frame_size, img_suffix):
-    
-    ## TO UPDATE: do with glob
-
-    # Get a list of all image files in the input folder
-    image_files = [f for f in os.listdir(img_dir) if f.endswith(img_suffix)]
-    
-    # Sort the images by their labels in ascending order
-    image_files.sort()
-    #print('len(image_files) =', len(image_files))
-
-    # Calculate the number of frames needed
-    num_frames = (len(image_files) + frame_size - 1) // frame_size
-
-    # Iterate through each frame
-    for i in range(num_frames):
-        start_index = i * frame_size
-        end_index = min((i + 1) * frame_size, len(image_files)) 
-        print(f'start: {start_index}, end: {end_index}')
-
-        # Create a sub-folder for the frame
-        frame_path = os.path.join(img_dir, f'Frame{i}')
-        os.makedirs(frame_path, exist_ok=True)
-
-        # Move the corresponding images to the sub-folder
-        for j in range(start_index, end_index):
-            source_path = os.path.join(img_dir, image_files[j])
-            dest_path = os.path.join(frame_path, image_files[j])
-            shutil.move(source_path, dest_path)
-            
-    return None
 
 
 
@@ -159,7 +160,20 @@ def group_images_by_frames(img_dir: str,
                            frame_size: int, 
                            img_suffix: str,
                            image_files: list[str] | None = None):
-        
+    """
+    Group image files into subdirectories (Frame0, Frame1, ...) based on frame size.
+    
+    Parameters:
+    -----------
+    img_dir : str
+        Directory containing the image files.
+    frame_size : int
+        Number of images per frame.
+    img_suffix : str
+        Suffix to filter image files.
+    image_files : list of str, optional
+        Pre-filtered and sorted list of image files. If None, it will be generated from img_dir.
+    """        
     
     if image_files is not None:
         pass
@@ -204,6 +218,20 @@ def create_frames(frames_dir: str,
                   img_suffix: str | None = None,
                   img_prefix: str | None = None,
                   sort_key: Callable[[str], Any] | None = None):
+    """
+    Convert each 'Frame' subdirectory in frames_dir into a single NIfTI volume using FreeSurfer.
+    
+    Parameters:
+    -----------
+    frames_dir : str
+        Directory containing 'Frame*' subfolders.
+    img_suffix : str, optional
+        Only include files ending with this suffix.
+    img_prefix : str, optional
+        Only include files starting with this prefix.
+    sort_key : callable, optional
+        Custom key function for sorting filenames.
+    """
     
     # Get a list of the frame directories
     frame_list = [d for d in os.listdir(frames_dir) if os.path.isdir(os.path.join(frames_dir, d)) and d.startswith('Frame')]
@@ -248,7 +276,16 @@ def create_frames(frames_dir: str,
 
 def generate_mean_image(infiles: list[str],
                         outfile: str) -> None:
-
+    """
+    Generate the mean image from a list of input images using FreeSurfer's mri_average.
+    
+    Parameters:
+    -----------
+    infiles : list of str
+        List of image paths.
+    outfile : str
+        Output file path.
+    """
 
     command = ['mri_average'] + infiles + [outfile]
     
@@ -261,7 +298,16 @@ def split_4D_into_frames(infile: str,
                          out_dir: str,
                          outfile_basename: str) -> None:
     """
-    Split an input 4D image into dynamic frames.
+    Split a 4D image into individual frames using FSL's fslsplit.
+    
+    Parameters:
+    -----------
+    infile : str
+        Path to the 4D image.
+    out_dir : str
+        Output directory to store the frames.
+    outfile_basename : str
+        Base name for output files.
     """
 
     outfile_basename_full = os.path.join(out_dir, outfile_basename)
@@ -276,6 +322,22 @@ def split_4D_into_frames(infile: str,
 
 
 def split_filename(filename):
+    """
+    Split a filename into base name and combined suffix (handles multi-part suffixes).
+
+    Parameters:
+    -----------
+    filename : str
+        Full filename (e.g., 'image.nii.gz')
+
+    Returns:
+    --------
+    name : str
+        Base name without extensions.
+    ext : str
+        Combined extension (e.g., '.nii.gz')
+    """    
+    
     p = Path(filename)
     # Get all suffixes (e.g., ['.tar', '.gz'] for 'my.archive.tar.gz')
     ext = "".join(p.suffixes)
