@@ -380,8 +380,9 @@ def gaussian_fwhm2sigma(fwhm: float) -> float:
 
 
 def gaussian_sigma2fwhm(sigma: float) -> float:
+    
     """
-    Convert standard deviation (sigma) to Gaussian full width at half maximum (FWHM).
+    Convert Gaussian standard deviation (sigma) to full width at half maximum (FWHM).
     
     Parameters:
     - sigma: Standard deviation.

@@ -1,5 +1,15 @@
 """
-Functions related to motion correction.
+motion_correction.py
+
+Functions related to motion correction for PET image frames.
+
+Includes:
+- mc_wrt_frame1(): Motion correction using edge amplification strategy.
+- mc_wrt_frame2(): Motion correction using normalization scaling strategy.
+- mc_through_matlab_canny_for_sequential_frames(): Sequential frame correction using Canny-based alignment.
+
+Author: Zeyu Zhou
+Date: 2025-05-21
 """
 
 
@@ -8,111 +18,11 @@ import numpy as np
 import shutil
 from . import smooth
 from . import math as km_math
-from . import feature 
-from . import smooth
+from . import edge_detection as ed
 
             
 
-# def mc_through_smoothing_wrt_frame(
-#         refid: int,
-#         toreg_ids: list[int],
-#         basename: str,
-#         PET_dir: str,
-#         del_middle_folder: bool, 
-#         thresholding: bool | None = None,
-#         threshold_lb: float | None = None,
-#         threshold_ub: float | None = None) -> None:
-    
-#     """
-#     Do motion correction to a list of image frames wrt to a given frame. Assume 
-#     the images are noisy. So smoothing is needed before motion correction. 
-    
-#     Steps:
-#         1. Smooth the images by Gaussian filter.
-#         2. Motion correct the smoothed images, producing transformation matrices. 
-#         3. Apply the transformation matrices to the original images. 
-    
-#     refid: ID of the reference frame
-#     toreg_ids: list of IDs of the frames to be registered
-#     basename: basename of the frame filenames. e.g. for Frame10.nii.gz, basename is 'Frame'
-#     PET_dir: path of the directory where the PET images are stored
-#     del_middle_folder: if the mc_middle_files folder will be deleted
-#     thresholding (optional): if thresholding will be applied or not
-#     threshold_lb (optional): thresholding lower-bound
-#     threshold_ub (optional): thresholding upper-bound
-#     """
-    
-#     # Tunable parameters
-#     gf_SIGMA = 3    
-    
-#     # Create a folder to store mc middle files
-#     mc_middle_dir = os.path.join(PET_dir, "mc_middle_files")
-#     os.makedirs(mc_middle_dir, exist_ok=True)
-    
-#     # Gaussian filtering
-#     print("============================")
-#     print("Applying Gaussian filter ...")
-#     print("Output: _gf.nii.gz files in mc_middle_files")
-#     print("============================")
-#     all_ids = [refid] + toreg_ids
-#     for i in all_ids:
-#         print(f"{basename} {i}")
-#         infile = os.path.join(PET_dir, f"{basename}{i}.nii.gz")
-#         outfile = os.path.join(mc_middle_dir, f"{basename}{i}_gf.nii.gz")
-#         smooth.gaussian_filter_3D(sigma = gf_SIGMA, 
-#                                   ippath = infile, 
-#                                   oppath = outfile)
-    
-#     # Thresholding (if requested)
-#     if thresholding:
-#         print("============================")
-#         print("Thresholding ...")
-#         print("Output: _gf.nii.gz files in mc_middle_files")
-#         print("============================")
-#         for i in all_ids:
-#             print(f"{basename} {i}")
-#             infile = os.path.join(mc_middle_dir, f"{basename}{i}_gf.nii.gz")
-#             outfile = os.path.join(mc_middle_dir, f"{basename}{i}_gf.nii.gz")
-#             km_math.thresholding(lb = threshold_lb,
-#                                   ub = threshold_ub,
-#                                   ippath = infile,
-#                                   oppath = outfile)
-    
-#     # Registration    
-#     print("============================")
-#     print("Registration ...")
-#     print("Output: _regto?.nii.gz and .mat files in mc_middle_files")
-#     print("============================")
-#     reffile = os.path.join(mc_middle_dir, f"{basename}{refid}_gf.nii.gz")
-#     for i in toreg_ids:
-#         print(f"{basename} {i} to {basename} {refid}")
-#         infile = os.path.join(mc_middle_dir, f"{basename}{i}_gf.nii.gz")
-#         outfile = os.path.join(mc_middle_dir, f"{basename}{i}_regto{refid}.nii.gz")
-#         matfile = os.path.join(mc_middle_dir, f"{basename}{i}to{refid}.mat")
-#         os.system(f'flirt -in {infile} -ref {reffile} -out {outfile} -omat {matfile} -dof 6')
-    
-    
-#     # Apply transformation matrices to original images
-#     print("=======================================================")
-#     print("Applying transformation matrices to original images ...")
-#     print("Output: _regto?.nii.gz files in original/raw image folder")
-#     print("=======================================================")
-#     # reffile is used to determine the size of the outfile volume, but the contents of reffile are NOT used
-#     reffile = os.path.join(PET_dir, f'{basename}{refid}.nii.gz')
-#     for i in toreg_ids:
-#         print(f"{basename} {i}")
-#         infile = os.path.join(PET_dir, f'{basename}{i}.nii.gz')
-#         outfile = os.path.join(PET_dir, f'{basename}{i}_regto{refid}.nii.gz')
-#         transmat = os.path.join(mc_middle_dir, f'{basename}{i}to{refid}.mat')
 
-#         os.system(f'flirt -in {infile} -ref {reffile} -out {outfile} -init {transmat} -applyxfm')
-        
-        
-#     if del_middle_folder:
-#         shutil.rmtree(mc_middle_dir)
-    
-#     return None
-    
 
 
 def mc_wrt_frame1(
@@ -126,8 +36,23 @@ def mc_wrt_frame1(
         gaussian_filter_sigma: float,
         q_percentile: float) -> None:
     """
-    TO-DO
-    """ 
+    Perform motion correction relative to a reference frame using enhanced images.
+    Enhancement = smoothed nonnegative image + amplified edge image (scaled by percentile).
+    
+    Parameters:
+    - refid: Index of the reference frame.
+    - toreg_ids: List of frame indices to be registered.
+    - basename: Frame base filename (e.g., 'Frame' for 'Frame10.nii.gz').
+    - PET_dir: Directory containing the input frames.
+    - del_middle_folder: Whether to delete the intermediate folder.
+    - matlab_dir: Path to directory containing approxcanny.m.
+    - approxcanny_thresh: High threshold for edge detection (low is 0.4×high).
+    - gaussian_filter_sigma: Sigma for Gaussian smoothing.
+    - q_percentile: Percentile value used to scale edge maps.
+    
+    Returns:
+    - None. Writes corrected files and optionally deletes intermediate folder.
+    """
     
     # Create a folder to store mc middle files
     mc_middle_dir = os.path.join(PET_dir, "mc_middle_files")
@@ -145,7 +70,7 @@ def mc_wrt_frame1(
         # Creating edges
         infile = os.path.join(PET_dir, f"{basename}{i}.nii.gz")
         outfile = os.path.join(mc_middle_dir, f"{basename}{i}_edges.nii.gz")
-        feature.matlab_approxcanny(thresh = approxcanny_thresh,
+        ed.matlab_approxcanny(thresh = approxcanny_thresh,
                                    sigma = gaussian_filter_sigma,
                                    infilepath = infile,
                                    outfilepath = outfile,
@@ -235,8 +160,23 @@ def mc_wrt_frame2(
         gaussian_filter_sigma: float,
         q_percentile: float) -> None:
     """
-    TO-DO
-    """ 
+    Perform motion correction relative to a reference frame using a scaled smoothing strategy.
+    Enhancement = normalized smoothed image + edge image.
+    
+    Parameters:
+    - refid: Index of the reference frame.
+    - toreg_ids: List of frame indices to be registered.
+    - basename: Frame base filename (e.g., 'Frame' for 'Frame10.nii.gz').
+    - PET_dir: Directory containing the input frames.
+    - del_middle_folder: Whether to delete the intermediate folder.
+    - matlab_dir: Path to directory containing approxcanny.m.
+    - approxcanny_thresh: High threshold for edge detection.
+    - gaussian_filter_sigma: Sigma for Gaussian smoothing.
+    - q_percentile: Percentile value used to normalize image intensity.
+    
+    Returns:
+    - None. Writes corrected files and optionally deletes intermediate folder.
+    """
     
     # Create a folder to store mc middle files
     mc_middle_dir = os.path.join(PET_dir, "mc_middle_files")
@@ -254,7 +194,7 @@ def mc_wrt_frame2(
         # Creating edges
         infile = os.path.join(PET_dir, f"{basename}{i}.nii.gz")
         outfile = os.path.join(mc_middle_dir, f"{basename}{i}_edges.nii.gz")
-        feature.matlab_approxcanny(thresh = approxcanny_thresh,
+        ed.matlab_approxcanny(thresh = approxcanny_thresh,
                                    sigma = gaussian_filter_sigma,
                                    infilepath = infile,
                                    outfilepath = outfile,
@@ -333,7 +273,8 @@ def mc_wrt_frame2(
 
 
 
-# This function does not work as expected, for some reason
+# This function does not work as expected, as it causes intra-frame errors to 
+# accumulate. Nor is this a common practice in literature. DO NOT USE IT. 
 # Use the _wrt_frame function above
 def mc_through_matlab_canny_for_sequential_frames(
         startid: int,
@@ -346,23 +287,30 @@ def mc_through_matlab_canny_for_sequential_frames(
         gaussian_filter_sigma: float) -> None:
     
     """
-    Do motion correction to a sequence of frames by using Matlab's (approximate)
-    Canny edge detection algorithm.    
+    Apply sequential motion correction to a series of frames using Canny edge alignment.
+    Each frame is registered to its immediate predecessor. 
+    
+    [This function does not work as expected, as it causes intra-frame errors to 
+    accumulate. Nor is this a common practice in literature. DO NOT USE IT. 
+    Use the _wrt_frame function above.]
     
     Steps: for each frame 
         1. Create the edges of this frame and the previous (motion corrected) frame
         2. Register/motion correct this frame's edges with respect to the previous frame's edges,  producing a transformation matrix
         3. Apply the transformation matrix to the frame
     
-    refid: ID of the reference frame
-    toreg_ids: list of IDs of the frames to be registered
-    basename: basename of the frame filenames. e.g. for Frame10.nii.gz, basename is 'Frame'
-    PET_dir: path of the directory where the PET images are stored
-    del_middle_folder: if the mc_middle_files folder will be deleted
-    matlab_dir: directory path of the Matlab folder, which contains the approxcanny.m file
-    approxcanny_thresh: high sensitivity threshold of the Canny algorithm. the low sensitivity threshold is
-              set as 0.4*thresh
-    gaussian_filter_sigma: standard deviation of the Gaussian smoothing filter. 
+    Parameters:
+    - startid: Starting frame index.
+    - endid: Ending frame index.
+    - basename: Frame base filename (e.g., 'Frame' for 'Frame10.nii.gz').
+    - PET_dir: Path to image directory.
+    - del_middle_folder: If True, delete temporary folder after execution.
+    - matlab_dir: Directory containing approxcanny.m.
+    - approxcanny_thresh: Threshold for edge detection.
+    - gaussian_filter_sigma: Sigma for Gaussian smoothing.
+    
+    Returns:
+    - None. Writes motion-corrected images. 
     """  
     
     # Create a folder to store mc middle files
@@ -385,7 +333,7 @@ def mc_through_matlab_canny_for_sequential_frames(
         print(f"{infilename} -> mc_middle_dir/{outfilename} ... ")
         infile = os.path.join(PET_dir, infilename)
         outfile = os.path.join(mc_middle_dir, outfilename)
-        feature.matlab_approxcanny(thresh = approxcanny_thresh,
+        ed.matlab_approxcanny(thresh = approxcanny_thresh,
                                    sigma = gaussian_filter_sigma,
                                    infilepath = infile,
                                    outfilepath = outfile,
@@ -397,7 +345,7 @@ def mc_through_matlab_canny_for_sequential_frames(
         print(f"{infilename} -> mc_middle_dir/{outfilename} ... ")
         infile = os.path.join(PET_dir, infilename)
         outfile = os.path.join(mc_middle_dir, outfilename)
-        feature.matlab_approxcanny(thresh = approxcanny_thresh,
+        ed.matlab_approxcanny(thresh = approxcanny_thresh,
                                    sigma = gaussian_filter_sigma,
                                    infilepath = infile,
                                    outfilepath = outfile,
