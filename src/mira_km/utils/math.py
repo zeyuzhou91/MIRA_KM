@@ -1,6 +1,20 @@
 """
-Math functions. 
+math.py
 
+Utility functions for voxel-wise image manipulation.
+
+Includes:
+- Arithmetic operations (multiply, add, average)
+- Thresholding and classification
+- Clipping with or without mask
+- Statistical queries (max value, percentile)
+- Gaussian FWHM/sigma conversions
+
+Dependencies:
+- Nibabel, NumPy, SciPy, FSL
+
+Author: Zeyu Zhou
+Date: 2025-05-21
 """
 
 import os
@@ -16,9 +30,12 @@ def multiply_local(
         ipimg: str,
         opimg: str) -> None:
     """
-    Multiply the image by a given value.
+    Multiply a NIfTI image by a constant value and save the result in the same directory.
     
-    Do it locally, read the local ipimg and produce the opimg to the same folder. 
+    Parameters:
+    - value: Scalar to multiply.
+    - ipimg: Path to input image.
+    - opimg: Path to output image.
     """
     
     # load input image
@@ -45,7 +62,12 @@ def multiply(
         ippath: str,
         oppath: str) -> None:
     """
-    Multiply the image by a given value.
+    Multiply a NIfTI image by a constant value.
+    
+    Parameters:
+    - value: Scalar multiplier.
+    - ippath: Input image path.
+    - oppath: Output image path.
     """
     
     # load input image
@@ -73,8 +95,13 @@ def thresholding_local(
         ipimg: str,
         opimg: str) -> None:
     """
-    Threshold the image by the given lower-bound and higher-bound. 
-
+    Clip voxel values in a NIfTI image to be within [lb, ub] bounds.
+    
+    Parameters:
+    - lb: Lower bound.
+    - ub: Upper bound.
+    - ipimg: Input image path.
+    - opimg: Output image path.
     """
 
     # load input image
@@ -101,9 +128,15 @@ def thresholding(
         ippath: str,
         oppath: str) -> None:
     """
-    Threshold the image by the given lower-bound and higher-bound. 
-
+    Deprecated duplicate of `clip()`. Threshold a NIfTI image using lower and upper bounds.
+    
     DUPLICATE WITH function clip. TO DELETE. 
+    
+    Parameters:
+    - lb: Lower bound.
+    - ub: Upper bound.
+    - ippath: Input image path.
+    - oppath: Output image path.
     """
 
     # load input image
@@ -132,9 +165,14 @@ def threshold_and_classify(
         ippath: str,
         oppath: str) -> None:
     """
-    Set all values above the threshold to up_class, below the threshold to
-    down_class. 
+    Assign voxels a binary label based on threshold comparison.
     
+    Parameters:
+    - threshold: Threshold value.
+    - up_class: Value for voxels >= threshold.
+    - down_class: Value for voxels < threshold.
+    - ippath: Input image path.
+    - oppath: Output image path.
     """
 
     # load input image
@@ -165,8 +203,14 @@ def clip(
         ub: float,
         mask_path: str | None = None) -> None:
     """
-    Clip the image by the given lower-bound and higher-bound. 
-
+    Clip voxel values in a NIfTI image to [lb, ub], optionally within a binary mask.
+    
+    Parameters:
+    - infile_path: Path to input image.
+    - outfile_path: Output path.
+    - lb: Lower bound.
+    - ub: Upper bound.
+    - mask_path: Optional mask (values outside mask are not clipped).
     """
 
     # load input image
@@ -211,8 +255,13 @@ def clip(
 
 def max_value_in_image(ippath: str) -> float:
     """
-    Find the max value in a given image. 
-
+    Return the maximum voxel value in a NIfTI image.
+    
+    Parameters:
+    - ippath: Path to image file.
+    
+    Returns:
+    - Maximum value (float).
     """
 
     # load input image
@@ -228,10 +277,14 @@ def max_value_in_image(ippath: str) -> float:
 def percentile_value_in_image(q: float, 
                               ippath: str) -> float:
     """
-    Find the q-th percentile of all pixel/voxel values in an image. 
+    Compute a percentile value from voxel intensities in a NIfTI image.
     
-    q: in [0, 100]
-
+    Parameters:
+    - q: Percentile to compute (0–100).
+    - ippath: Input image path.
+    
+    Returns:
+    - The q-th percentile value.
     """
 
     # load input image
@@ -251,8 +304,12 @@ def add(
         ippath2: str,
         oppath: str) -> None:
     """
-    Add two images. They must be of the same dimension. 
-
+    Add two NIfTI images element-wise.
+    
+    Parameters:
+    - ippath1: First input image.
+    - ippath2: Second input image.
+    - oppath: Output image path.
     """
     
     ip1 = nib.load(ippath1)
@@ -277,8 +334,11 @@ def average(
         ippaths: list[str],
         oppath: str) -> None:
     """
-    Find average of N images. They must be of the same dimension. 
-
+    Compute the voxel-wise average of a list of NIfTI images using FSL.
+    
+    Parameters:
+    - ippaths: List of input paths.
+    - oppath: Output path.
     """
     
     command = ['fslmaths']
@@ -302,8 +362,13 @@ def average(
 
 def gaussian_fwhm2sigma(fwhm: float) -> float:
     """
-    fwhm: full width at half maximum
-    sigma: standard deviation
+    Convert Gaussian full width at half maximum (FWHM) to standard deviation (sigma).
+    
+    Parameters:
+    - fwhm: Full width at half maximum.
+    
+    Returns:
+    - sigma: Standard deviation.
     """
     
     
@@ -316,8 +381,13 @@ def gaussian_fwhm2sigma(fwhm: float) -> float:
 
 def gaussian_sigma2fwhm(sigma: float) -> float:
     """
-    fwhm: full width at half maximum
-    sigma: standard deviation
+    Convert standard deviation (sigma) to Gaussian full width at half maximum (FWHM).
+    
+    Parameters:
+    - sigma: Standard deviation.
+    
+    Returns:
+    - fwhm: Full width at half maximum.
     """
     
     r = 2 * np.sqrt(2 * np.log(2))

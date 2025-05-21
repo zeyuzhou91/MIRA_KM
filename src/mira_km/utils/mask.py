@@ -1,6 +1,16 @@
 """
-Functions related to masking. 
+mask.py
 
+Utility functions for creating, transforming, and manipulating binary masks
+in MR and PET image processing workflows. Includes operations like:
+
+Dependencies:
+- Nibabel, NumPy, SciPy, scikit-image
+- Custom modules: aux, math, smooth
+- External tools: FreeSurfer, FSL
+
+Author: Zeyu Zhou
+Date: 2025-05-21
 """
 
 import numpy as np
@@ -10,8 +20,7 @@ import os
 import shutil
 from pathlib import Path
 from skimage.morphology import ball, binary_dilation, binary_erosion
-from . import aux  # NOTE: simply "import aux" won't work
-
+from . import auxiliary as aux  
 from .math import gaussian_fwhm2sigma, threshold_and_classify
 from .smooth import gaussian_filter_3D
 
@@ -22,6 +31,19 @@ def extract_MR_domain_mask_from_segmentation(
         ID_type: str,
         seg_path: str, 
         out_path: str) -> str:
+    """
+    Generate a binary MR mask from a segmentation file by including or excluding
+    specific ROI IDs.
+    
+    Parameters:
+    - IDs: List of integer labels to include or exclude.
+    - ID_type: Either "including" or "excluding".
+    - seg_path: File path to the input segmentation image (.nii or .nii.gz).
+    - out_path: Path to save the resulting binary mask.
+    
+    Returns:
+    - A nibabel Nifti1Image object representing the binary mask.
+    """        
 
     # load segmentation as an nifti image
     seg = nib.load(seg_path)
@@ -57,22 +79,18 @@ def create_MR_domain_mask(
         opROI_name: str, 
         op_dir: str) -> str:
     """
-    Create an MR mask (binary .nii.gz image).
-
-    Parameters
-    ----------
-    IDs : The integer IDs of ROIs that the mask should include/exclude. 
-    ID_type: "including" or "excluding"
-    seg_path : file path. The path of the MR segmentation file from which the 
-               mask is created. The file should be .nii or .nii.gz.
-    opROI_name : The name of the output combined ROI. 
-    op_dir : directory path. The path of the output directory where the output mask is stored. 
-
-    Returns
-    -------
-    opmask_path: file path. The path of the output mask file, ending in .nii.gz.
-
-    """
+    Create a binary MR mask (.nii.gz) based on a list of ROI IDs from a segmentation.
+    
+    Parameters:
+    - IDs: List of integer labels to include or exclude.
+    - ID_type: Either "including" or "excluding".
+    - seg_path: Path to the segmentation file.
+    - opROI_name: String identifier for the output ROI.
+    - op_dir: Directory to store the resulting mask file.
+    
+    Returns:
+    - Full file path to the generated binary mask.
+    """    
     
     # load segmentation as an nifti image
     seg = nib.load(seg_path)
@@ -110,6 +128,19 @@ def transform(
         lta_path: str, 
         thr: float, 
         save_bfthr_mask: bool) -> str:
+    """
+    Apply a linear transformation to a binary mask using a FreeSurfer .lta file and threshold the result.
+    
+    Parameters:
+    - ipmask_path: Input mask file path.
+    - opmask_path: Output path for the final binary mask.
+    - lta_path: Path to the .lta transform file.
+    - thr: Threshold value to binarize the transformed mask.
+    - save_bfthr_mask: Whether to save the intermediate float-valued mask before thresholding.
+    
+    Returns:
+    - Path to the final binary output mask.
+    """
     
     op_dir = str(Path(opmask_path).parent)
     
@@ -156,26 +187,22 @@ def linear_transform(
         thr: float, 
         save_bfthr_mask: bool, 
         op_dir: str) -> str:
+    
     """
-    Performs linear transform of the input mask from inDomain to outDomain. 
-
-    Parameters
-    ----------
-    ipmask_path : directory path. The path of the input mask .nii.gz file. 
-    inDomain : The input domain, 'mr' or 'pet'.
-    outDomain : The output domain, 'mr' or 'pet'.
-    lta_path : file path. The path of the .reg.lta file, containing information of the linear transform. 
-    thr : float in [0, 1]. The threshold for mapping decimal values to binary 
-          values for the PET mask transformed from MR domain.
-    save_bfthr_mask : True - save the intermediate decimal-valued mask before thresholding; 
-                      False - do not save.  
-    op_dir : directory path. The path of the output directory where the output mask is stored. 
-
-    Returns
-    -------
-    opmask_path: file path. The path of the output mask file, ending in .nii.gz
-
-    """
+    Transform a binary mask between MR and PET domains using an .lta file and thresholding.
+    
+    Parameters:
+    - ipmask_path: Input mask path.
+    - inDomain, outDomain: Domain identifiers (e.g., 'mr', 'pet').
+    - lta_path: Path to the .lta transform file.
+    - thr: Threshold for binarization.
+    - save_bfthr_mask: Bool to save intermediate result.
+    - op_dir: Output directory for the final mask.
+    
+    Returns:
+    - File path of the final binary mask.
+    """    
+    
     
     # dashed versions of inDomain and outDomain
     inD = f'_{inDomain}_'
@@ -234,7 +261,7 @@ def create_PET_domain_mask(
         mr2pet_lta_path: str,
         op_dir: str) -> str:
     """
-    Create a PET mask (binary .nii.gz image) that includes the given ROIs. 
+    Create a binary PET mask from a segmentation image using a domain transformation.
     
     Parameters
     ----------
@@ -286,7 +313,20 @@ def transform_MR_segmentation(seg_path: str,
                               lta_path: str,
                               middle_dir: str,
                               del_middle_dir: bool) -> None:
-
+    """
+    Transform a full segmentation from MR to PET domain by transforming each label individually.
+    
+    Parameters:
+    - seg_path: Path to input MR segmentation.
+    - seg_transformed_path: Output path for transformed segmentation.
+    - lta_path: LTA transform file path.
+    - middle_dir: Temp folder to store intermediate masks.
+    - del_middle_dir: Whether to delete the temp folder.
+    
+    Returns:
+    - None. Writes transformed segmentation to disk.
+    """
+    
     seg = nib.load(seg_path)
     seg_data = seg.get_fdata().astype(int)
     all_IDs = list(set(seg_data.flatten()))
@@ -363,7 +403,18 @@ def merge_masks_to_segmentation(IDs: list[int],
                                 seg_out_path: str,
                                 affine,
                                 header) -> None:
+    """
+    Merge multiple binary masks into a single segmentation image.
     
+    Parameters:
+    - IDs: Label IDs to assign to each mask.
+    - mask_paths: File paths to masks.
+    - seg_out_path: Output path for segmentation.
+    - affine, header: Image metadata for saving.
+    
+    Returns:
+    - None. Saves merged image to disk.
+    """    
     
     seg_out_data = None
     
@@ -387,34 +438,34 @@ def merge_masks_to_segmentation(IDs: list[int],
     return None
 
 
-def merge_masks_to_segmentation_overlap_test(IDs: list[int],
-                                             mask_paths: list[str],
-                                             seg_out_path: str,
-                                             affine,
-                                             header) -> None:
+# def merge_masks_to_segmentation_overlap_test(IDs: list[int],
+#                                              mask_paths: list[str],
+#                                              seg_out_path: str,
+#                                              affine,
+#                                              header) -> None:
     
-    seg_out_data = None
+#     seg_out_data = None
     
-    for (ID, mask_path) in zip(IDs, mask_paths):
+#     for (ID, mask_path) in zip(IDs, mask_paths):
         
-        mask = nib.load(mask_path)
-        mask_data = mask.get_fdata().astype(int)
+#         mask = nib.load(mask_path)
+#         mask_data = mask.get_fdata().astype(int)
         
-        if seg_out_data is None:
+#         if seg_out_data is None:
             
-            seg_out_data = ID * mask_data
+#             seg_out_data = ID * mask_data
         
-        else:
+#         else:
             
-            seg_out_data += ID * mask_data
+#             seg_out_data += ID * mask_data
             
-    uniq = set(seg_out_data.flatten())
-    print(f'uniq = {uniq}')
+#     uniq = set(seg_out_data.flatten())
+#     print(f'uniq = {uniq}')
     
-    num_twos = np.count_nonzero(seg_out_data == 2)
-    print(f'number of 2: {num_twos}')
+#     num_twos = np.count_nonzero(seg_out_data == 2)
+#     print(f'number of 2: {num_twos}')
             
-    return None
+#     return None
 
 
 
@@ -495,6 +546,10 @@ def generate_masked_img(ipimg_path, mask_path, maskedROI_name, op_dir):
         
         
 def num_voxels(mask_path):
+    """
+    Returns the number of voxels in a given mask. 
+
+    """
     
     # Load the mask
     mask = nib.load(mask_path)
@@ -511,7 +566,7 @@ def dilation(
         ippath: str,
         oppath: str) -> None:
     """
-    Dilate the mask by a ball with a given radius.
+    Dilate mask with spherical kernel.
 
     """
 
@@ -538,9 +593,7 @@ def erosion(
         ippath: str,
         oppath: str) -> None:
     """
-    Erode the mask.
-    
-    depth: number of layers/pixels to erode
+    Erode mask with binary erosion.
 
     """
     
@@ -563,6 +616,7 @@ def erosion(
     return None
 
 
+
 def erosion_ODonell2024(
         fwhm: float,
         threshold: float,
@@ -575,8 +629,6 @@ def erosion_ODonell2024(
 
     """
     
-    # ippath: jack/home/Document/myfile.txt
-    # gaussian_oppath: jack/home/Document/gaussiantemp_myfile.txt
     ipp = Path(ippath)
     parent_dir = ipp.parent
     ipname = ipp.name
@@ -605,7 +657,7 @@ def union(
         ippath2: str,
         oppath: str) -> None:
     """
-    Find the union of two masks.
+    Combine two binary masks with OR.
     """
 
     ip1 = nib.load(ippath1)
@@ -630,7 +682,7 @@ def intersect(
         ippath2: str,
         oppath: str) -> None:
     """
-    Find the intersection of two masks.
+    Combine two binary maskes with AND.
     """
 
     ip1 = nib.load(ippath1)
@@ -655,7 +707,7 @@ def minus(
         ippath2: str,
         oppath: str) -> None:
     """
-    Find all regions in image1 that is not in image2. 
+    Subtract mask2 from mask1.
     """
 
     ip1 = nib.load(ippath1)
@@ -681,7 +733,7 @@ def complement(
         ippath: str,
         oppath: str) -> None:
     """
-    Find the complement mask. 
+    Find the complement binary mask by inverting. 
     """
 
     ip = nib.load(ippath)
