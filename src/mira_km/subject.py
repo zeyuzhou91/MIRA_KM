@@ -1,12 +1,25 @@
 """
-Subject
+subject.py
+
+Manages subject-level metadata for a PET study cohort.
+Supports reading/writing from Excel, editing subject-level fields,
+filtering subjects based on metadata, and exporting the dataset.
+
+Author: Zeyu Zhou
+Date: 2025-05-21
 """
 
 from typing import Dict, List, Any
 import pandas as pd
     
     
-class Cohort:
+class SubjectRegistry:
+    """
+    Manages metadata for a cohort of subjects.
+
+    Attributes:
+    - info (dict): Nested dictionary of subject metadata {subject: {field: value}}
+    """
     
     def __init__(self, info_dict: dict):
         
@@ -16,7 +29,14 @@ class Cohort:
     @classmethod
     def from_excel(cls, filepath: str):
         """
-        Read subject info from a xlsx file. 
+        Create SubjectRegistry from an Excel file.
+        The first column is treated as subject ID; the rest as metadata.
+
+        Parameters:
+        - filepath (str): Path to the Excel file
+
+        Returns:
+        - SubjectRegistry object
         """
         
         info_dict = {}
@@ -41,6 +61,7 @@ class Cohort:
         
     
     def print_info(self):
+        """Prints detailed metadata for all subjects."""
         
         for (subject, subj_info) in self.info.items():
             print("=================")
@@ -56,6 +77,12 @@ class Cohort:
     
     
     def add_header(self, h: str | list[str]):
+        """
+        Add a new metadata field (header) for all subjects and initialize to None.
+
+        Parameters:
+        - h (str or list[str]): Header(s) to add
+        """
         
         if isinstance(h, str):
         
@@ -75,6 +102,9 @@ class Cohort:
                               subj: str,
                               header: str,
                               value: float):
+        """
+        Assign a value to a specific header for a subject.
+        """
         
         self.info[subj][header] = value
             
@@ -86,6 +116,11 @@ class Cohort:
                     subj: str,
                     header: str,
                     value: float):
+        """
+        Assign a value to a specific header for a subject.
+        
+        Alias for add_subj_header_value
+        """
         
         self.info[subj][header] = value
             
@@ -95,7 +130,9 @@ class Cohort:
     def get_value(self, 
                   subj: str,
                   header: str):
-        
+        """
+        Retrieve value for a given subject and header.
+        """        
         
         v = self.info[subj][header] 
             
@@ -103,6 +140,12 @@ class Cohort:
 
 
     def all_values_of_header(self, header: str):
+        """
+        Retrieve all values of a specific header across subjects.
+
+        Returns:
+        - List of values
+        """
         
         all_values = []
         
@@ -115,6 +158,8 @@ class Cohort:
     
     def all_subj_names(self):
         """
+        Return a list of all subject IDs.
+        
         ZEYU: maybe a better name?
         """
         
@@ -123,7 +168,10 @@ class Cohort:
     
     def write_to_excel(self, filepath: str):
         """
-        Write info to an excel file. 
+        Write the subject metadata to an Excel file.
+
+        Parameters:
+        - filepath (str): Output Excel path
         """
                 
         df = pd.DataFrame(self.info).T  # Transpose to get subjects as rows
