@@ -1,5 +1,18 @@
 """
-Functions related to arterial data and their processing. 
+arterial.py
+
+Functions and classes for processing arterial input function (AIF) and blood-related data
+in dynamic PET studies. This includes fitting input functions, modeling blood activity,
+and estimating plasma/blood concentrations using standard models.
+
+Includes:
+- TimedPoints: Class for managing time-series data with fitting and plotting utilities
+- BloodInput: Class for estimating CP and CB from metabolite data or blood TAC
+- Fitting models: linear_2exp, linear_3exp, zero_linear_3exp, Hill, twoExp, etc.
+
+
+Author: Zeyu Zhou
+Date: 2025-05-22
 """
 
 import numpy as np
@@ -7,8 +20,9 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from collections.abc import Callable
 from numpy.typing import NDArray
-from .tool import aux
 
+
+from .utils import auxiliary as aux
 from .frameschedule import FrameSchedule
 from .tac import TAC
 
@@ -39,7 +53,8 @@ class TimedPoints:
     @classmethod
     def from_file(cls, filepath: str, name: str):
         """
-        File must be a csv file with two columns. 
+        Initialize a TimedPoints instance from a two-column CSV file.
+        Assumes columns are: time and value.
         """
         
         t, t_header, t_unit, data, header, unit = aux.read_from_csv_twocols(filepath)
@@ -87,7 +102,8 @@ class TimedPoints:
             bounds: tuple | None = None, 
             ) -> None:
         """
-        Fit the points to a parameterized function. 
+        Fit the points to a model function using non-linear least squares. 
+        Stores the fitted function and parameters in the object. 
 
         Parameters
         ----------
@@ -115,7 +131,7 @@ class TimedPoints:
     
     def print_fitparams(self):
         """
-        Print the fitting parameters. 
+        Print the fitted parameters. 
         """
         
         print('Fitting parameters:\n')
@@ -152,6 +168,10 @@ class BloodInput:
                               p2wb_ratio_path: str,
                               t: NDArray,
                               ) -> None:
+        """
+        Construct a BloodInput object from metabolite data CSVs.
+        Fits intact fraction and plasma-to-blood conversion.
+        """
         
         # plasma concentration tac (before metabolite correction)
         ptac = TimedPoints.from_file(ptac_path, 'Plasma Activity Concentration')
@@ -189,12 +209,18 @@ class BloodInput:
                    t = t,
                    unit = ptac.unit,
                    t_unit = ptac.t_unit)
+    
         
     @classmethod
     def from_blood_tac(cls, 
                        tac: TAC | str,
                        fs: FrameSchedule,
                        p0: tuple | None = None):
+        """
+        Construct a BloodInput object by fitting a blood TAC file or TAC object.
+        Used when plasma data is not available.
+        """
+        
         
         if isinstance(tac, TAC):
             blood_tac = tac
@@ -208,11 +234,11 @@ class BloodInput:
         # bounds = ((0, 0, 0, 0, 0),
         #           (np.inf, np.inf, np.inf, np.inf, np.inf))
         
-        bounds = None
+        # bounds = None
         
-        fitted_params = blood_tac.fit(model = linear_3exp,
-                                      p0 = p0,
-                                      bounds = bounds)
+        # fitted_params = blood_tac.fit(model = linear_3exp,
+        #                               p0 = p0,
+        #                               bounds = bounds)
         
         # print("ICA fitting:")
         
@@ -279,20 +305,21 @@ def linear_2exp(t: float | np.ndarray,
                 a, Tpk, A1, lamb1, lamb2
                 ) -> float | np.ndarray:
     """
-    Implements the following piecewise function f(t):
-        
-    f(t) = a*t  if 0 <= t < Tpk
-         = A1*exp{-lamb1*(t-Tpk)} + A2*exp{-lamb2*(t-Tpk)}  if t >= Tpk
+    Piecewise function for blood activity modeling:
+    - Linear ramp up to time Tpk
+    - Sum of two exponentials after Tpk
     
-    The parameters should satisfy:
-        a * Tpk = A1 + A2
+    f(t) = a * t,                if t < Tpk
+         = A1 * exp(-lamb1*(t-Tpk)) + A2 * exp(-lamb2*(t-Tpk)), if t ≥ Tpk
+    
+    Where A2 = a * Tpk - A1 (ensures continuity)
     """
     
     A2 = a * Tpk - A1
     
     return ( 
         ((t>=0)&(t<Tpk)) * (a * t) + 
-        (t>=Tpk) * (A1*np.exp(-lamb1*(t-Tpk)) + A2*np.exp(-lamb2*(t-Tpk))))
+        (t>=Tpk) * (A1 * np.exp(-lamb1*(t-Tpk)) + A2 * np.exp(-lamb2*(t-Tpk))))
 
 
 
@@ -300,13 +327,14 @@ def linear_3exp(t: float | np.ndarray,
                 a, Tpk, A1, lamb1, A2, lamb2, lamb3,
                 ) -> float | np.ndarray:
     """
-    Implements the following piecewise function f(t):
-        
-    f(t) = a*t  if 0 <= t < Tpk
-         = A1*exp{-lamb1*(t-Tpk)} + A2*exp{-lamb2*(t-Tpk)} + A3*exp{-lamb3*(t-Tpk)}  if t >= Tpk
+    Piecewise function for blood activity modeling:
+    - Linear ramp up to time Tpk
+    - Sum of three exponentials after Tpk
     
-    The parameters should satisfy:
-        a * Tpk = A1 + A2 + A3
+    f(t) = a * t, if t < Tpk
+         = A1 * exp(-lamb1*(t-Tpk)) + A2 * exp(-lamb2*(t-Tpk)) + A3 * exp(-lamb3*(t-Tpk)), if t ≥ Tpk
+    
+    Where A3 = a * Tpk - (A1 + A2) (ensures continuity)
     """
     
     A3 = a * Tpk - (A1 + A2)
@@ -320,11 +348,14 @@ def zero_linear_3exp(t: float | np.ndarray,
                      a, b, Tpk, A1, lamb1, A2, lamb2, lamb3,
                      ) -> float | np.ndarray:
     """
-    Implements the following piecewise function f(t):
+    Extended model that includes a delay and intercept before linear ramp:
+    - Flat zero until -b/a
+    - Linear ramp from -b/a to Tpk
+    - Three exponentials after Tpk
         
     f(t) = 0      if  t < -b/a
-         = a*t+b  if -b/a <= t < Tpk
-         = A1*exp{-lamb1*(t-Tpk)} + A2*exp{-lamb2*(t-Tpk)} + A3*exp{-lamb3*(t-Tpk)}  if t >= Tpk
+         = a * t + b  if -b/a <= t < Tpk
+         = A1 * exp{-lamb1*(t-Tpk)} + A2 * exp{-lamb2*(t-Tpk)} + A3 * exp{-lamb3*(t-Tpk)}  if t >= Tpk
     
     The parameters should satisfy:
         a * Tpk + b = A1 + A2 + A3
@@ -342,7 +373,7 @@ def zero_linear_3exp(t: float | np.ndarray,
 
 def Hill(t: float | np.ndarray, a, b, c) -> float | np.ndarray:
     """
-    Implements the Hill function f(t):
+    Hill-type sigmoid function:
     
     f(t) = 1 - (1-a)t^b/(c+t^b)
     
@@ -378,15 +409,18 @@ def Hill_bounds() -> tuple:
 
 def twoExp(t, r1, r2, r3, r4) -> float:
     """
-    Sum of two exponential functions. Often used for fitting plasma-to-blood 
-    or blood-to-plasma ratio curves. 
+    Sum of two exponentials used to fit plasma-to-blood or blood-to-plasma ratio:
+
+    f(t) = r1 * exp(-r3*t) + r2 * (1 - exp(-r4*t))
+
+    Both r3 and r4 represent decay rates.
     
     Constraints for all parameters: (0, +inf)
     
     Source: http://www.turkupetcentre.net/petanalysis/input_blood-to-plasma_fitting.html
     """
     
-    return r1*np.exp(-r3*t) + r2*(1-np.exp(-r4*t))
+    return r1 * np.exp(-r3*t) + r2 * (1-np.exp(-r4*t))
 
 
 
@@ -401,13 +435,16 @@ def twoExp_bounds() -> tuple:
     return bounds
 
 
-# oneExp is currently not used, maybe useful later
 def oneExp(t, rmin, rmax, rate) -> float:
     """
-    One exponential function f(t). 
+    Single exponential decay model:
+
+    f(t) = rmin + (rmax - rmin) * exp(-rate * t)
 
     When t = 0, f(t) = rmax
     When t = +inf, f(t) = rmin    
+    
+    Not currently in use but available for potential alternative fits.
     """
 
     return rmin + (rmax-rmin)*np.exp(-rate*t)
@@ -426,10 +463,6 @@ def oneExp_bounds() -> tuple:
     
     
 
-
-if __name__ == "__main__":
-    
-    pass
 
 
         
