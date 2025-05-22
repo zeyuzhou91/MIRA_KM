@@ -5,10 +5,21 @@ Frame Schedule
 
 import numpy as np
 from numpy.typing import NDArray
-from .tool import aux
+from .utils import auxiliary as aux
 
 
 class FrameSchedule:
+    """
+    Class representing the schedule of frames in dynamic PET imaging.
+
+    Attributes:
+    - mid_points (NDArray): Time at the midpoint of each frame
+    - durations (NDArray): Duration of each frame
+    - start_points (NDArray): Start time of each frame
+    - unit (str): Unit of time (e.g., seconds, minutes)
+    - num_frames (int): Total number of frames
+    """
+    
     def __init__(self, mid_points: NDArray, durations: NDArray, start_points: NDArray, unit: str):
         self.mid_points = mid_points
         self.durations = durations         
@@ -20,7 +31,17 @@ class FrameSchedule:
     def from_midpoints(cls, 
                        array: list[float] = None, 
                        filepath: str = None):
-    
+        """
+        Create a FrameSchedule from an array of midpoints or a file.
+
+        Parameters:
+        - array (list of float): List of frame mid-points.
+        - filepath (str): Path to a CSV file with one column of midpoints.
+
+        Returns:
+        - FrameSchedule object
+        """
+        
         if array is not None and filepath is not None:
             raise ValueError("Only one of array or filepath should be provided, not both.")
         
@@ -60,6 +81,16 @@ class FrameSchedule:
     def from_durations(cls, 
                        array: list[float] = None,
                        filepath: str = None):
+        """
+        Create a FrameSchedule from an array of durations or a file.
+
+        Parameters:
+        - array (list of float): List of frame durations.
+        - filepath (str): Path to a CSV file with one column of durations.
+
+        Returns:
+        - FrameSchedule object
+        """
         
         if array is not None and filepath is not None:
             raise ValueError("Only one of array or filepath should be provided, not both.")
