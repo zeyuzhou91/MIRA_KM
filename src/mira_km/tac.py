@@ -1,5 +1,14 @@
 """
-TAC
+tac.py 
+
+TAC (Time-Activity Curve) Module
+
+This module provides classes and functions for handling and analyzing TAC data
+in PET imaging workflows. Supports extracting TACs from PET images and CSV files,
+fitting models to TACs, and visualizing results.
+
+Author: Zeyu Zhou
+Date: 2025-05-26
 """
 
 import os
@@ -15,20 +24,42 @@ from .typing_utils import NumpyRealNumberArray
 from .tool import aux  
 
 
+
 class TAC_FULL:
+    """
+    A container for full TAC statistics over multiple frames.
+
+    Attributes:
+        avg (np.ndarray): Average signal per frame.
+        tot (np.ndarray): Total signal per frame.
+        std (np.ndarray): Standard deviation per frame.
+        num_voxels (int): Number of voxels used for extraction.
+        unit (str): Unit of signal (e.g., kBq/mL).
+        histogram (tuple): Histogram of voxel values per frame (optional).
+    """
     def __init__(self):
-        
         self.avg = None
         self.tot = None
         self.std = None
         self.num_voxels = None
         self.unit = None
-        
         self.histogram = None
 
 
 
 class TAC:
+    """
+    Represents a Time-Activity Curve (TAC) of a PET region of interest (ROI).
+
+    Attributes:
+        t (np.ndarray): Time midpoints for each frame.
+        y (np.ndarray): Activity values.
+        std (np.ndarray): Standard deviations.
+        unit (str): Unit of activity.
+        t_unit (str): Unit of time.
+        full_info (TAC_FULL): Full statistics from TAC extraction.
+        fitted_func (Callable): Fitted function from model fitting.
+    """
     
     def __init__(self,
                  t: NumpyRealNumberArray | None = None,
@@ -65,6 +96,16 @@ class TAC:
     def from_file(cls,
                   fs: FrameSchedule,
                   tacfile_path: str):
+        """
+        Load TAC from CSV file.
+
+        Args:
+            fs (FrameSchedule): Time frame schedule.
+            tacfile_path (str): Path to the CSV file containing TAC data.
+
+        Returns:
+            TAC: Instance of TAC with loaded data.
+        """
         
         y, std, num_voxels, unit = extract_tac_from_csv(tacfile_path)
     
@@ -84,6 +125,20 @@ class TAC:
                     mask_path: str,
                     opfile_path: str | None = None, 
                     PETimg_unit: str | None = None):
+        """
+        Extract TAC from a 3D or 4D PET image using a binary mask.
+
+        Args:
+            fs (FrameSchedule): Time frame schedule.
+            PETimg_path (str): Path to the PET image.
+            mask_path (str): Path to binary mask.
+            opfile_path (str, optional): Where to save the extracted TAC.
+            PETimg_unit (str, optional): Unit of PET signal.
+
+        Returns:
+            TAC: TAC instance with extracted data.
+        """        
+        
         
         tac_full = extract_tac_from_PETimg(PETimg_path, mask_path, opfile_path, PETimg_unit)
         
@@ -98,7 +153,10 @@ class TAC:
     
     def cut(self, indices: list[int]):
         """
-        Cut the Tac at given indices. 
+        Remove selected frame indices from the TAC.
+
+        Args:
+            indices (list[int]): List of indices to remove.
         """
         
         self.t = np.delete(self.t, indices)
@@ -113,7 +171,14 @@ class TAC:
     def scale_y(self, 
                 multiply_factor: float,
                 new_y_unit: str):
-    
+        """
+        Scale the y-values of TAC by a factor and update the unit.
+
+        Args:
+            multiply_factor (float): Scale factor.
+            new_y_unit (str): Updated unit after scaling.
+        """
+        
         self.y *= multiply_factor
         self.unit = new_y_unit
         if self.std is not None:
@@ -128,11 +193,15 @@ class TAC:
             bounds: tuple | None = None, 
             ) -> None:
         """
-        Fit the tac points to a model. 
+        Fit the TAC using a given model function.
 
-        Parameters
-        ----------
-        model: function to be fitted, first argument must be time, the remaining arguments are parameters 
+        Args:
+            model (Callable): Model function (time, *params).
+            p0 (tuple, optional): Initial parameter guess.
+            bounds (tuple, optional): Bounds for parameters.
+
+        Returns:
+            np.ndarray: Optimized parameter values.
         """
         
         if bounds is None:
@@ -213,6 +282,20 @@ def extract_tac_from_PETimg(
         mask_path: str,
         opfile_path: str | None = None, 
         PETimg_unit: str | None = None):
+
+    """
+    Extracts TAC data from a PET image and binary mask.
+
+    Args:
+        PETimg_path (str): Path to PET image (3D or 4D).
+        mask_path (str): Path to binary mask.
+        opfile_path (str, optional): Where to write results.
+        PETimg_unit (str, optional): Unit of PET signal.
+
+    Returns:
+        TAC_FULL: Object containing extracted TAC statistics.
+    """
+
     
     # For a given PET image, apply a binary mask and generate the ROI information. 
     
@@ -317,6 +400,16 @@ def extract_tac_from_PETimg(
 
 
 def extract_tac_from_csv(filepath: str):
+
+    """
+    Loads TAC data from a CSV file with average, std, and voxel count.
+
+    Args:
+        filepath (str): Path to the CSV file.
+
+    Returns:
+        tuple: (avg, std, num_voxels, unit)
+    """
         
     #ys, header, unit = aux.read_from_csv_onecol(filepath)
         

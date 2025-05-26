@@ -1,5 +1,18 @@
 """
-Tissue
+tissue.py
+
+This module defines classes and utilities for managing brain tissues in PET/MR analysis.
+It includes tools for creating and transforming masks, extracting time-activity curves (TACs),
+performing morphological operations, and managing collections of tissue data.
+
+Classes:
+- Tissue: Represents a tissue ROI and its associated TAC and mask.
+- Ref_Tissue: Subclass of Tissue for reference regions.
+- Tissue_Collections: Manages multiple Tissue instances as a collection.
+- Input_Collections: A container for multiple input sources (BloodInput, Tissue, etc.)
+
+Author: Zeyu Zhou
+Date: 2025-05-26
 """
 
 import os
@@ -14,11 +27,25 @@ from .environment import Environment
 from .frameschedule import FrameSchedule
 from .tac import TAC
 from .arterial import BloodInput
-from .tool import file_handling as fh
-from .tool import mask
+from .utils import filesystem_utils as fu
+from .utils import mask
 
 
 class Tissue:
+    """
+    Represents a tissue region of interest (ROI) defined by a mask and associated with a TAC.
+
+    Attributes:
+    - name (str): Tissue name.
+    - IDs (list[int]): Region labels from segmentation maps.
+    - ID_type (str): 'including' or 'excluding'.
+    - MR_domain_mask_path (str): Path to the MR-space binary mask.
+    - PET_domain_mask_path (str): Path to the PET-space binary mask.
+    - tac (TAC): Time-activity curve for the region.
+    - num_voxels (int): Number of voxels in the mask.
+    - fitted_tac: (optional) Fitted version of the TAC.
+    """
+    
     def __init__(self, 
                  name, 
                  IDs: list[int] | None = None, 
@@ -53,7 +80,16 @@ class Tissue:
                 fs: FrameSchedule,
                 env: Environment):
         """
-        Assume MR domain path for now. 
+        Initialize a Tissue from segmentation IDs and ID type.
+    
+        Automatically creates a mask in MR domain and extracts TAC.
+    
+        Parameters:
+        - name (str): ROI name.
+        - IDs (list[int]): Region IDs to include or exclude.
+        - ID_type (str): 'including' or 'excluding'.
+        - fs (FrameSchedule): Frame schedule.
+        - env (Environment): Environment with paths and config.
         """
         
         # generate mask
@@ -83,6 +119,9 @@ class Tissue:
                    MR_domain_mask_path: str,
                    fs: FrameSchedule,
                    env: Environment):
+        """
+        Create a Tissue from an existing MR-domain mask file.
+        """
         
         # generate tac
         tac = extract_Tissue_tac(name = name, 
@@ -107,8 +146,7 @@ class Tissue:
                    env: Environment):
     
         """
-        Return a new Tissue by erosion of mask from Tissue T0. Assume mask in 
-        MR domain.
+        Create a new Tissue by applying binary erosion on an existing Tissue mask.
         """
         
         new_MR_domain_mask_path = tissue_to_erode.MR_domain_mask_path.replace(tissue_to_erode.name, new_name)
@@ -133,7 +171,7 @@ class Tissue:
                                env: Environment):
     
         """
-        Erosion by the ODonell2024 method. Assume mask in MR domain.
+        Create a new Tissue using a smoothing-based erosion approach inspired by O'Donell et al. (2024).
         """
         
         new_MR_domain_mask_path = tissue_to_erode.MR_domain_mask_path.replace(tissue_to_erode.name, new_name)
@@ -158,8 +196,7 @@ class Tissue:
                     env: Environment):
     
         """
-        Return a new Tissue by dilation of mask from Tissue T0. Assume mask in 
-        MR domain.
+        Create a new Tissue by applying binary dilation on an existing Tissue mask.
         """
         
         new_MR_domain_mask_path = tissue_to_dilate.MR_domain_mask_path.replace(tissue_to_dilate.name, new_name)
@@ -174,40 +211,12 @@ class Tissue:
                               env = env)
 
 
-        
-    # def rename(self, new_name: str):
-        
-    #     old_name = self.name
-    #     self.name = new_name
-        
-    #     if self.MR_domain_mask_path is not None:
-            
-    #         old_MR_domain_mask_path = self.MR_domain_mask_path
-    #         new_MR_domain_mask_path = old_MR_domain_mask_path.replace(old_name, new_name)
-            
-    #         # copy the local mask path
-    #         fh.copy_file(old_MR_domain_mask_path, new_MR_domain_mask_path)
-            
-    #         # update
-    #         self.MR_domain_mask_path = new_MR_domain_mask_path
-        
-    #     if self.PET_domain_mask_path is not None:
-            
-    #         old_PET_domain_mask_path = self.PET_domain_mask_path
-    #         new_PET_domain_mask_path = old_PET_domain_mask_path.replace(old_name, new_name)
-            
-    #         # copy the local mask path
-    #         fh.copy_file(old_PET_domain_mask_path, new_PET_domain_mask_path)
-        
-    #         # update
-    #         self.PET_domain_mask_path = new_PET_domain_mask_path
-        
-    #     return None
-
-
     def generate_mask(self, 
                       delete_existing_mask_first: bool,
                       env: Environment):
+        """
+        Generate MR or PET domain mask for the tissue based on environment setting.
+        """
         
         if env.variables['mask_domain'] == 'MR':
             self.generate_MR_domain_mask(env = env)
@@ -223,6 +232,7 @@ class Tissue:
 
     def generate_MR_domain_mask(self, env: Environment):
         
+        """Generate or regenerate the MR-domain mask."""
                 
         self.MR_domain_mask_path = \
             generate_Tissue_MR_domain_mask(name = self.name,
@@ -239,7 +249,8 @@ class Tissue:
                                  env: Environment,
                                  THR: float | None = None):
         
-
+        """Generate or regenerate the PET-domain mask using LTA transformation."""
+        
         self.PET_domain_mask_path = \
             generate_Tissue_PET_domain_mask(name = self.name,
                                             IDs = self.IDs,
@@ -255,10 +266,7 @@ class Tissue:
                     fs: FrameSchedule,
                     env: Environment):
         
-        """
-        Extract tac from the tac file (csv) if it exists; otherwise, extract it 
-        from the PET image. 
-        """
+        """Extract the tissue TAC, using existing CSV if available, or from PET image."""
         
         
         if env.variables['mask_domain'] == 'MR':
@@ -279,9 +287,7 @@ class Tissue:
                          fs: FrameSchedule,
                          env: Environment):
         
-        """
-        Extract tac full information.
-        """
+        """Extract the full TAC information including statistics across voxels."""
 
         
         if env.variables['mask_domain'] == 'MR':
@@ -303,10 +309,8 @@ class Tissue:
     def erode_mask(self,
                     env: Environment,
                     depth: int | None = None):
-        """
-        Assume MR domain mask for now.
-
-        """
+        
+        """Apply in-place binary erosion to the tissue's MR-domain mask."""
         
         if depth is None:
             depth = 1
@@ -323,6 +327,8 @@ class Tissue:
                     env: Environment,
                     radius: int | None = None):
         
+        """Apply in-place binary dilation to the tissue's MR-domain mask."""
+        
         if radius is None:
             radius = 1
         
@@ -332,25 +338,15 @@ class Tissue:
             
         return None
     
-    
-
-
-    # def complement_mask(self, env: Environment):
-        
-    #     if env.variables['mask_domain'] == 'MR':
-    #         mask.complement(ippath = self.MR_domain_mask_path, 
-    #                         oppath = self.MR_domain_mask_path)
-            
-    #     elif env.variables['mask_domain'] == 'PET':
-    #         mask.complement(ippath = self.PET_domain_mask_path, 
-    #                         oppath = self.PET_domain_mask_path)
-            
-    #     return None
 
 
 
 
 class Ref_Tissue(Tissue):
+    
+    """
+    Specialized subclass of Tissue representing a reference region in PET quantification.
+    """    
     
     def __init__(self,
                  name, 
@@ -374,6 +370,10 @@ class Ref_Tissue(Tissue):
 
 class Tissue_Collections:
     
+    """
+    Container for multiple Tissue objects. Provides batch operations and plotting utilities.
+    """
+    
     def __init__(self, 
                  tissues: list[Tissue]):
         
@@ -393,7 +393,10 @@ class Tissue_Collections:
                  file_path: str, 
                  fs: FrameSchedule,
                  env: Environment):
-        
+        """
+        Load a set of tissues from a text file containing name-ID pairs.
+        """
+
         tissues = []
         with open(file_path, 'r') as file:
             for line in file:
@@ -417,12 +420,16 @@ class Tissue_Collections:
     
     def tissue_names(self):
         
+        """Return a list of all tissue names."""
+        
         names = [tissue.name for tissue in self.tissues]
         
         return names
 
 
     def tissue_by_name(self, name: str) -> Tissue:
+        
+        """Retrieve a Tissue object by name."""
         
         if name not in self.names:
             raise ValueError(f'{name} not found')
@@ -435,6 +442,8 @@ class Tissue_Collections:
     
     def index_by_name(self, name: str) -> int:
         
+        """Return index of a Tissue by its name."""
+        
         if name not in self.names:
             raise ValueError(f'{name} not found')
         else:
@@ -444,6 +453,8 @@ class Tissue_Collections:
     
 
     def remove_tissue(self, name: str):
+        
+        """Remove a Tissue by its name."""
 
         ind = self.index_by_name(name)
         self.tissues.pop(ind)
@@ -454,6 +465,9 @@ class Tissue_Collections:
     
     
     def add_tissue(self, tissue: Tissue):
+        
+        """Add a Tissue object to the collection."""
+        
         self.tissues.append(tissue)
         self.num_tissues = len(self.tissues)
         self.names = self.tissue_names()
@@ -468,6 +482,8 @@ class Tissue_Collections:
                                   ID_type: str,
                                   fs: FrameSchedule,
                                   env: Environment):
+        
+        """Create and add a Tissue from ID specification."""
         
         tissue = Tissue.by_name_and_ID(name = name, 
                                        IDs = IDs, 
@@ -486,6 +502,8 @@ class Tissue_Collections:
                               fs: FrameSchedule,
                               env: Environment):
         
+        """Create and add a Tissue using an MR mask path."""
+        
         tissue = Tissue.by_MR_mask(name = name, 
                                    MR_domain_mask_path = MR_domain_mask_path, 
                                    fs = fs, 
@@ -497,6 +515,8 @@ class Tissue_Collections:
 
     
     def read_tac_units(self):
+        
+        """Infer and validate consistency of TAC units across all tissues."""
         
         if self.tissues is None:
             y_unit, t_unit = None, None
@@ -520,6 +540,8 @@ class Tissue_Collections:
                    multiply_factor: float,
                    new_tac_unit: str):
         
+        """Scale all tissue TAC values by a specified factor and update units."""
+        
         for tissue in self.tissues:
             tissue.tac.scale_y(multiply_factor = multiply_factor,
                                new_y_unit = new_tac_unit)
@@ -537,6 +559,8 @@ class Tissue_Collections:
                   title: str | None = None,
                   xlim: list[float] | tuple[float] | None = None,
                   ylim: list[float] | tuple[float] | None = None) -> None:
+        
+        """Plot TACs for selected tissues with options for saving figures."""
         
         if tissue_names is None or (len(tissue_names) == 1 and tissue_names[0] == 'all'):
             tissues_to_plot = self.tissues
@@ -598,15 +622,15 @@ class Tissue_Collections:
               xlim: list[float] | tuple[float] | None = None,
               ylim: list[float] | tuple[float] | None = None) -> None:
         
+        """Plot standard deviation of TACs across tissues."""
+        
         # TO DO
         # similar to plot_tacs
         return None 
 
 
     def return_tissue_copy(self, name):
-        """
-        Return a tissue copy by the given name.
-        """
+        """Return a deep copy of a tissue identified by name."""
         
         tissue = self.tissue_by_name(name)
         tissue_copy = tissue.copy()
@@ -615,6 +639,7 @@ class Tissue_Collections:
 
     
     def tissue_tac(self, name):
+        """Return the TAC object for a specific tissue."""
         
         tissue = self.tissue_by_name(name)
         
@@ -623,6 +648,9 @@ class Tissue_Collections:
 
 
 class Input_Collections:
+    """
+    Simple container for a mixed list of BloodInput, Tissue, or Ref_Tissue instances.
+    """
     
     def __init__(self, 
                  inputs: list[BloodInput, Tissue, Ref_Tissue]):
@@ -637,13 +665,37 @@ def generate_Tissue_MR_domain_mask(name: str,
                                    IDs: list[int],
                                    ID_type: str,
                                    env: Environment):
+
+    """
+    Generate the MR-domain binary mask for a tissue using segmentation labels.
+
+    This function constructs a binary mask in MR space by including or excluding
+    specified label IDs from the segmentation image. If a mask with the same name
+    already exists and `delete_existing_mask_first` is set in `env`, the old mask is deleted.
+
+    Parameters:
+    ----------
+    name : str
+        Name of the tissue or region of interest (used for file naming).
+    IDs : list[int]
+        List of label IDs to include or exclude from the segmentation image.
+    ID_type : str
+        Mode of operation: either "including" (keep listed IDs) or "excluding" (remove listed IDs).
+    env : Environment
+        Environment object containing paths and processing settings (e.g., segmentation path, output dir).
+
+    Returns:
+    -------
+    MR_domain_mask_path : str
+        File path to the generated binary mask in MR space.
+    """
     
     # MR mask
     MR_domain_mask_path = os.path.join(env.variables['MR_masks_dir'], f'mask_mr_{name}.nii.gz')
     delete_existing_mask_first = env.variables['delete_existing_mask_first']
     
     if os.path.exists(MR_domain_mask_path) and delete_existing_mask_first:
-        fh.delete_file(MR_domain_mask_path)
+        fu.delete_file(MR_domain_mask_path)
     
     if os.path.exists(MR_domain_mask_path):
         pass
@@ -668,6 +720,35 @@ def generate_Tissue_PET_domain_mask(name: str,
                                     MR_domain_mask_path: str,
                                     env: Environment,
                                     THR: float | None = None):
+
+    """
+    Generate a PET-domain binary mask for a tissue by transforming its MR-domain mask.
+    
+    If the MR-domain mask does not exist, it will be generated using segmentation labels.
+    The transformation uses a linear transform `.lta` file and thresholding.
+    
+    Parameters:
+    ----------
+    name : str
+        Name of the tissue (used for naming the output file).
+    IDs : list[int]
+        List of segmentation label IDs (used only if MR mask needs to be generated).
+    ID_type : str
+        Either "including" or "excluding", to control mask generation logic.
+    MR_domain_mask_path : str
+        Path to the MR-space mask to be transformed.
+    env : Environment
+        Environment object containing paths and configuration variables.
+    THR : float, optional
+        Threshold to apply on the resampled MR-domain mask after transformation to PET space. 
+        Default is 0.8.
+    
+    Returns:
+    -------
+    PET_domain_mask_path : str
+        Path to the transformed binary mask in PET space.
+    """
+
     
     if THR is None:
         THR = 0.8
@@ -677,7 +758,7 @@ def generate_Tissue_PET_domain_mask(name: str,
     delete_existing_mask_first = env.variables['delete_existing_mask_first']
     
     if os.path.exists(PET_domain_mask_path) and delete_existing_mask_first:
-        fh.delete_file(PET_domain_mask_path)
+        fu.delete_file(PET_domain_mask_path)
     
     if os.path.exists(PET_domain_mask_path):
         pass
@@ -706,7 +787,17 @@ def generate_Tissue_PET_domain_mask(name: str,
 
 def calculate_num_voxels_in_mask(mask_path: str | None):
     """
-    Number of voxels in the mask. 
+    Calculate the number of non-zero voxels in a binary mask.
+
+    Parameters:
+    ----------
+    mask_path : str | None
+        Path to the binary mask file (in NIfTI format). If None, returns None.
+
+    Returns:
+    -------
+    num_voxels : int | None
+        Number of non-zero voxels (i.e., included region). Returns None if input is None.
     """
     
     if mask_path is None:
@@ -722,8 +813,28 @@ def extract_Tissue_tac(name: str,
                        env: Environment):
     
     """
-    Extract tac from the tac file (csv) if it exists; otherwise, extract it 
-    from the PET image. 
+    Extract or compute the time-activity curve (TAC) for a tissue.
+
+    If a CSV file containing the TAC already exists, it is read from disk unless 
+    the environment setting `delete_existing_tac_first` is True. If no CSV exists 
+    or deletion is requested, the TAC is extracted from the PET image using the 
+    binary mask provided.
+
+    Parameters:
+    ----------
+    name : str
+        Name of the tissue (used for naming the TAC CSV file).
+    fs : FrameSchedule
+        Frame schedule providing the time midpoints for each frame.
+    mask_path : str
+        Path to the binary mask (either in MR or PET space).
+    env : Environment
+        Environment object providing file paths, units, and options.
+
+    Returns:
+    -------
+    tac : TAC
+        TAC object representing the mean activity in the tissue across frames.
     """
     
     tacfilename_extension = '_tac.csv'
@@ -733,7 +844,7 @@ def extract_Tissue_tac(name: str,
     delete_existing_tac_first = env.variables['delete_existing_tac_first']
     
     if os.path.exists(tacfile_path) and delete_existing_tac_first:
-        fh.delete_file(tacfile_path)
+        fu.delete_file(tacfile_path)
         
     if os.path.exists(tacfile_path):
         
