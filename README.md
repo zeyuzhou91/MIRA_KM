@@ -1,6 +1,6 @@
 # MIRA_KM
 
-**MIRA_KM** is a Python-based research toolkit designed for PET/MR image processing and modeling, particularly focused on the analysis of cerebrospinal fluid (CSF) dynamics in the human brain using FDG-PET imaging. It provides modular tools for segmentation, registration, kinetic modeling, and statistical evaluation.
+**MIRA_KM** is a Python-based research toolkit designed for PET/MR image processing and modeling. It provides modular tools for segmentation, registration, kinetic modeling, and statistical evaluation.
 
 ## Features
 
