@@ -74,8 +74,8 @@ def concatenate_frames(frame_list: list[str],
 
 
 
-def generate_mean_frame(infile: str,
-                        outfile: str) -> None:
+def generate_mean_frame_from_4D(infile: str,
+                                outfile: str) -> None:
     """
     Generate mean frame from a 4D dynamic image using FreeSurfer's mri_concat.
     
@@ -273,25 +273,26 @@ def create_frames(frames_dir: str,
     return None
 
 
-
-def generate_mean_image(infiles: list[str],
-                        outfile: str) -> None:
-    """
-    Generate the mean image from a list of input images using FreeSurfer's mri_average.
+# DO NOT use this function -- it seems to have scaling problem
+# def generate_mean_img_from_img_list(infiles: list[str],
+#                                     outfile: str) -> None:
+#     """
+#     Generate the mean image from a list of input images using FreeSurfer's mri_average.
     
-    Parameters:
-    -----------
-    infiles : list of str
-        List of image paths.
-    outfile : str
-        Output file path.
-    """
-
-    command = ['mri_average'] + infiles + [outfile]
+#     Parameters:
+#     -----------
+#     infiles : list of str
+#         List of image paths.
+#     outfile : str
+#         Output file path.
+#     """
     
-    subprocess.run(command)
+#     print('infiles: ', infiles)
+#     command = ['mri_average'] + infiles + [outfile]
     
-    return None
+#     subprocess.run(command)
+    
+#     return None
 
 
 def split_4D_into_frames(infile: str,

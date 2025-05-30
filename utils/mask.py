@@ -6,7 +6,7 @@ in MR and PET image processing workflows. Includes operations like:
 
 Dependencies:
 - Nibabel, NumPy, SciPy, scikit-image
-- Custom modules: aux, math, smooth
+- Custom modules: math, smooth
 - External tools: FreeSurfer, FSL
 
 Author: Zeyu Zhou
@@ -20,9 +20,10 @@ import os
 import shutil
 from pathlib import Path
 from skimage.morphology import ball, binary_dilation, binary_erosion
-from . import auxiliary as aux  
+
 from .math import gaussian_fwhm2sigma, threshold_and_classify
 from .smooth import gaussian_filter_3D
+from .filesystem_utils import extract_file_name 
 
 
 
@@ -144,7 +145,7 @@ def transform(
     
     op_dir = str(Path(opmask_path).parent)
     
-    opmask_basename, extension = aux.extract_file_name(opmask_path)
+    opmask_basename, extension = extract_file_name(opmask_path)
 
     # names and path of the bfthr output mask
     opmask_bfthr_basename = opmask_basename + '_bfthr'
@@ -208,7 +209,7 @@ def linear_transform(
     inD = f'_{inDomain}_'
     outD = f'_{outDomain}_'
     
-    ipmask_basename, extension = aux.extract_file_name(ipmask_path)
+    ipmask_basename, extension = extract_file_name(ipmask_path)
 
     assert inD in ipmask_basename, f"The mask name {ipmask_basename} should contain {inD}"
     
@@ -314,7 +315,7 @@ def transform_MR_segmentation(seg_path: str,
                               middle_dir: str,
                               del_middle_dir: bool) -> None:
     """
-    Transform a full segmentation from MR to PET domain by transforming each label individually.
+    Transform a full segmentation from the MR domain to another by transforming each label individually.
     
     Parameters:
     - seg_path: Path to input MR segmentation.
@@ -529,7 +530,7 @@ def generate_masked_img(ipimg_path, mask_path, maskedROI_name, op_dir):
     opimg = nib.Nifti1Image(opimg_data, ipimg.affine, ipimg.header)
 
 
-    ipimg_basename, extension = aux.extract_file_name(ipimg_path)
+    ipimg_basename, extension = extract_file_name(ipimg_path)
         
     # Generate the output image's name and path
     # E.g. if input image = frame5.nii.gz and maskedROI_name is "cerebellum"
