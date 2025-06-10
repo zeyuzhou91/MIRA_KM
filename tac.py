@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 from .frameschedule import FrameSchedule
 from .typing_utils import NumpyRealNumberArray
-from .tool import aux  
+from .utils import auxiliary as aux 
 
 
 
