@@ -584,6 +584,7 @@ class Tissue_Collections:
             
         plt.xlabel(f't ({self.tac_t_unit})')
         plt.ylabel(f'{self.tac_y_unit}')
+        #plt.ylabel('SUV')
         
         if xlim is not None:
             if xlim[0] is not None:
