@@ -1,0 +1,42 @@
+Caudate including 11 50
+Putamen including 12 51
+Thalamus including 10 49
+Hippocampus including 17 53
+Amygdala including 18 54
+Cerebellum including 7 8 46 47
+Vermis including 172
+Striatum including 11 12 50 51
+bankssts including 1001 2001
+caudalanteriorcingulate including 1002 2002
+caudalmiddlefrontal including 1003 2003
+cuneus including 1005 2005
+entorhinal including 1006 2006
+fusiform including 1007 2007
+inferiorparietal including 1008 2008
+inferiortemporal including 1009 2009
+isthmuscingulate including 1010 2010
+lateraloccipital including 1011 2011
+lateralorbitofrontal including 1012 2012
+lingual including 1013 2013
+medialorbitofrontal 1014 2014
+middletemporal including 1015 2015
+parahippocampal including 1016 2016
+paracentral including 1017 2017
+parsopercularis including 1018 2018
+parsorbitalis including 1019 2019
+parstriangularis including 1020 2020
+pericalcarine including 1021 2021
+postcentral including 1022 2022
+posteriorcingulate including 1023 2023
+precentral including 1024 2024
+precuneus including 1025 2025
+rostralanteriorcingulate including 1026 2026
+rostralmiddlefrontal including 1027 2027
+superiorfrontal including 1028 2028
+superiorparietal including 1029 2029
+superiortemporal including 1030 2030
+supramarginal including 1031 2031
+frontalpole including 1032 2032
+temporalpole including 1033 2033
+transversetemporal including 1034 2034
+insula including 1035 2035

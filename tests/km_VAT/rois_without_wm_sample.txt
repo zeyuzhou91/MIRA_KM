@@ -1,0 +1,8 @@
+Caudate including 11 50
+Putamen including 12 51
+Thalamus including 10 49
+Hippocampus including 17 53
+Cerebellum including 7 8 46 47
+Vermis including 172
+Striatum including 11 12 50 51
+posteriorcingulate including 1023 2023

@@ -16,9 +16,9 @@ MIRA_KM/
 ├── docs/                            # Project documentation, focused on kinetic models
 ├── models/                          # Kinetic models
 ├── utils/                           # Utility modules and functions
+├── tests/                           # test scripts for kinetic modeling
 ├── .gitignore
 ├── README.md
-└── requirements.txt
 ```
 
 ## Installation
@@ -30,13 +30,7 @@ git clone https://github.com/zeyuzhou91/MIRA_KM.git
 cd MIRA_KM
 ```
 
-2. Install required dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Ensure FreeSurfer and FSL are installed and correctly configured in your environment.
+2. Ensure FreeSurfer and FSL are installed and correctly configured in your environment.
 
 ## Usage
 
@@ -47,6 +41,10 @@ Example:
 from mira_km.subject import SubjectRegistry
 from mira_km.frameschedule import FrameSchedule
 ```
+
+## Note about tests
+
+The tests folder contains legacy scripts originally used for running various kinetic modeling analyses on the VAT dataset. The dataset is located on the MIRA lab's Pegasus32R4 local drive under Zeyu's directory. These scripts are currently outdated and require revision to be compatible with the current structure of the MIRA_KM package. 
 
 
 ## License
